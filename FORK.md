@@ -301,6 +301,45 @@ entirely (their native email/password login still works, since that's a
 separate code path). Make sure whoever holds the platform owner account is
 in `AP_KEYCLOAK_ADMIN_GROUP` before enabling this in a fresh environment.
 
+## Real RP-initiated logout (added after user-reported bug)
+
+User-reported bug, real and confirmed: clicking logout only cleared
+Activepieces' own local token (`authentication-session.ts`'s `logOut()`
+never touched Keycloak at all) — Keycloak's own browser SSO session cookie
+stayed alive, so clicking "Sign in with Keycloak" again silently
+re-authenticated without ever prompting for a password. Standard OIDC SSO
+behavior, just surprising without a matching real logout.
+
+Fixed in two passes, because the first one wasn't enough — verify each
+piece if you rebase this:
+
+1. New `GET /v1/authn/keycloak/logout`, builds the URL from the OIDC
+   discovery doc's `end_session_endpoint` + `post_logout_redirect_uri`.
+   Frontend tags a session as Keycloak-originated and, on logout, redirects
+   there instead of just clearing local storage.
+2. **That alone was not enough** — live testing (curl + real cookie jar)
+   showed Keycloak returning an interactive "Do you want to log out?"
+   confirmation page instead of ending the session, because
+   `id_token_hint` was missing. Fixed by having `authenticate()` also
+   return the *raw* id_token string (not just its decoded claims),
+   returning it to the frontend as `keycloakIdToken` on the `/claim`
+   response, storing it, and passing it back as `?idTokenHint=` on
+   `/logout` — `getLogoutUrl()` includes it as `id_token_hint` when
+   present.
+
+Also required a **separate Keycloak-side config change**, easy to miss on
+a fresh client: the client's `post.logout.redirect.uris` attribute must
+explicitly list the sign-in URL — it's independent from the normal
+`redirectUris` used for login, and Keycloak rejects an unregistered
+`post_logout_redirect_uri` outright.
+
+**Verified live, full real flow** (curl + cookie jar, not just unit-level):
+login as a real user → `GET /logout?idTokenHint=...` → `302` (direct
+redirect, no confirmation page) → **logging in again with the same
+browser/cookie jar shows the real Keycloak login form**, asking for
+credentials again — confirmed by the presence of `name="username"` in the
+response and the absence of an auto-redirect-with-code.
+
 ## What's intentionally NOT done
 
 - No changes to the existing Google/SAML EE code paths, beyond widening one
