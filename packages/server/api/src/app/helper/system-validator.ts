@@ -157,6 +157,12 @@ const systemPropValidators: {
     [AppSystemProp.GOOGLE_CLIENT_ID]: stringValidator,
     [AppSystemProp.GOOGLE_CLIENT_SECRET]: stringValidator,
 
+    // Keycloak SSO (Refresquito fork)
+    [AppSystemProp.KEYCLOAK_SSO_ENABLED]: booleanValidator,
+    [AppSystemProp.KEYCLOAK_ISSUER_URL]: urlValidator,
+    [AppSystemProp.KEYCLOAK_CLIENT_ID]: stringValidator,
+    [AppSystemProp.KEYCLOAK_CLIENT_SECRET]: stringValidator,
+
     // Cloudflare
     [AppSystemProp.CLOUDFLARE_API_TOKEN]: stringValidator,
     [AppSystemProp.CLOUDFLARE_API_BASE]: stringValidator,
@@ -282,6 +288,20 @@ export const validateEnvPropsOnStartup = async (log: FastifyBaseLogger): Promise
             message: 'AP_JWT_SECRET is undefined, please define it in the environment variables',
             docUrl: 'https://www.activepieces.com/docs/install/configuration/environment-variables',
         }))
+    }
+
+    const keycloakSsoEnabled = system.getBoolean(AppSystemProp.KEYCLOAK_SSO_ENABLED) ?? false
+    if (keycloakSsoEnabled) {
+        const missingProps = [
+            AppSystemProp.KEYCLOAK_ISSUER_URL,
+            AppSystemProp.KEYCLOAK_CLIENT_ID,
+            AppSystemProp.KEYCLOAK_CLIENT_SECRET,
+        ].filter((prop) => isNil(system.get(prop)))
+        if (missingProps.length > 0) {
+            throw new Error(JSON.stringify({
+                message: `AP_KEYCLOAK_SSO_ENABLED is true but the following properties are missing: ${missingProps.map((prop) => `AP_${prop}`).join(', ')}`,
+            }))
+        }
     }
 
     const edition = system.getEdition()
