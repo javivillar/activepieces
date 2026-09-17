@@ -9,13 +9,21 @@ ENV LANG=en_US.UTF-8 \
 # package on deb.debian.org's CDN — that repo's snapshot for bullseye is gone.
 # Drop just that line; none of the packages below need a security-pinned
 # version beyond what's already in the base image.
+#
+# That leaves one more wrinkle: the base image's own libc6/perl-base are
+# already at a newer point release (2.31-13+deb11u13 / 5.32.1-4+deb11u4)
+# than what remains in main (u11 / u3) — those newer builds only ever lived
+# in the now-gone debian-security snapshot. libc6-dev/perl in main exact-pin
+# to the older main-suite version, so apt refuses to touch already-installed
+# libc6/perl-base without --allow-downgrades. Downgrading them by one point
+# release is safe here (build-time base image only).
 RUN sed -i '/debian-security/d' /etc/apt/sources.list
 
 # Install all system dependencies in a single layer with cache mounts
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends --allow-downgrades \
         openssh-client \
         python3 \
         g++ \
