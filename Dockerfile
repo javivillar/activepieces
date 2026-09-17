@@ -5,6 +5,16 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
+# bullseye (Debian 11) is past its regular support window — deb.debian.org/
+# debian-security 404s on individual package files even though apt-get update
+# still succeeds (stale index). Repoint at the permanent archive instead.
+RUN sed -i \
+        -e 's|deb.debian.org|archive.debian.org|g' \
+        -e 's|security.debian.org|archive.debian.org/debian-security|g' \
+        -e '/bullseye-updates/d' \
+        /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+
 # Install all system dependencies in a single layer with cache mounts
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
