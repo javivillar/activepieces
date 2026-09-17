@@ -16,8 +16,10 @@ ENV LANG=en_US.UTF-8 \
 # in the now-gone debian-security snapshot. libc6-dev/perl in main exact-pin
 # to the older main-suite version, so apt refuses to touch already-installed
 # libc6/perl-base without --allow-downgrades — and --allow-downgrades only
-# applies to packages named explicitly on the command line, not ones pulled
-# in transitively, so libc6/perl-base must be listed here too.
+# applies to packages named explicitly (with an exact target version; naming
+# them bare is a no-op since apt considers the newer installed one to already
+# satisfy an unversioned request) on the command line, not ones pulled in
+# transitively.
 RUN sed -i '/debian-security/d' /etc/apt/sources.list
 
 # Install all system dependencies in a single layer with cache mounts
@@ -25,8 +27,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends --allow-downgrades \
-        libc6 \
-        perl-base \
+        libc6=2.31-13+deb11u11 \
+        perl-base=5.32.1-4+deb11u3 \
         openssh-client \
         python3 \
         g++ \
