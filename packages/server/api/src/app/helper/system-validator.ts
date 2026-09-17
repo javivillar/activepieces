@@ -163,6 +163,7 @@ const systemPropValidators: {
     [AppSystemProp.KEYCLOAK_CLIENT_ID]: stringValidator,
     [AppSystemProp.KEYCLOAK_CLIENT_SECRET]: stringValidator,
     [AppSystemProp.KEYCLOAK_ADMIN_GROUP]: stringValidator,
+    [AppSystemProp.KEYCLOAK_USER_GROUP]: stringValidator,
 
     // Cloudflare
     [AppSystemProp.CLOUDFLARE_API_TOKEN]: stringValidator,

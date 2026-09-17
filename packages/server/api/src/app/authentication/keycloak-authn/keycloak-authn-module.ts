@@ -1,4 +1,4 @@
-import { ApplicationEventName, AuthenticationResponse, isNil, PlatformRole, UserIdentityProvider } from '@activepieces/shared'
+import { ActivepiecesError, ApplicationEventName, AuthenticationResponse, ErrorCode, isNil, PlatformRole, UserIdentityProvider } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
@@ -14,6 +14,7 @@ import { authenticationService } from '../authentication.service'
 import { keycloakAuthnProvider } from './keycloak-authn-provider'
 
 const DEFAULT_ADMIN_GROUP = 'activepieces-admin'
+const DEFAULT_USER_GROUP = 'activepieces-user'
 
 export const keycloakAuthnModule: FastifyPluginAsyncZod = async (app) => {
     if (!(system.getBoolean(AppSystemProp.KEYCLOAK_SSO_ENABLED) ?? false)) {
@@ -40,6 +41,8 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
             clientSecret: system.getOrThrow(AppSystemProp.KEYCLOAK_CLIENT_SECRET),
             authorizationCode: req.body.code,
         })
+
+        assertGroupAccessAllowed(idToken.groups)
 
         const platformId = await platformUtils.getPlatformIdForRequest(req)
         const response = await authenticationService(req.log).federatedAuthn({
@@ -72,6 +75,20 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
     })
 }
 
+function assertGroupAccessAllowed(groups: string[]): void {
+    const adminGroup = getAdminGroup()
+    const userGroup = getUserGroup()
+    if (groups.includes(adminGroup) || groups.includes(userGroup)) {
+        return
+    }
+    throw new ActivepiecesError({
+        code: ErrorCode.AUTHORIZATION,
+        params: {
+            message: `User is not a member of the "${adminGroup}" or "${userGroup}" Keycloak group`,
+        },
+    })
+}
+
 async function syncPlatformRoleFromGroups(log: FastifyBaseLogger, response: AuthenticationResponse, groups: string[]): Promise<void> {
     if (isNil(response.platformId)) {
         return
@@ -80,8 +97,7 @@ async function syncPlatformRoleFromGroups(log: FastifyBaseLogger, response: Auth
     if (platform.ownerId === response.id) {
         return
     }
-    const adminGroup = system.get(AppSystemProp.KEYCLOAK_ADMIN_GROUP) ?? DEFAULT_ADMIN_GROUP
-    const desiredRole = groups.includes(adminGroup) ? PlatformRole.ADMIN : PlatformRole.MEMBER
+    const desiredRole = groups.includes(getAdminGroup()) ? PlatformRole.ADMIN : PlatformRole.MEMBER
     if (response.platformRole === desiredRole) {
         return
     }
@@ -91,6 +107,14 @@ async function syncPlatformRoleFromGroups(log: FastifyBaseLogger, response: Auth
         platformRole: desiredRole,
     })
     response.platformRole = desiredRole
+}
+
+function getAdminGroup(): string {
+    return system.get(AppSystemProp.KEYCLOAK_ADMIN_GROUP) ?? DEFAULT_ADMIN_GROUP
+}
+
+function getUserGroup(): string {
+    return system.get(AppSystemProp.KEYCLOAK_USER_GROUP) ?? DEFAULT_USER_GROUP
 }
 
 const LoginRequestSchema = {
