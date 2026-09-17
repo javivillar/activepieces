@@ -1,0 +1,205 @@
+# FORK.md — refresquito-keycloak-sso
+
+This branch adds a native "Sign in with Keycloak" OIDC button to
+Activepieces **Community Edition**, which has no SSO at all upstream
+(federated login is gated behind `ApEdition.CLOUD`/`ApEdition.ENTERPRISE`,
+and even Enterprise only supports SAML 2.0 — see
+[activepieces/activepieces#11553](https://github.com/activepieces/activepieces/issues/11553)).
+
+Branched from tag **`0.85.4`**. Base repo: `activepieces/activepieces`.
+This fork: `javivillar/activepieces`. PR (against a synthetic base branch
+pinned to `0.85.4`, so the diff is clean): [#1](https://github.com/javivillar/activepieces/pull/1).
+
+Read this before rebasing/merging onto a newer upstream tag — it tells you
+*why* each change exists, not just what changed, so you can judge whether
+it still applies or whether upstream has since made it unnecessary.
+
+## Design decision: no Enterprise license faking
+
+Upstream's real federated-login machinery (`federated-authn` module, Google/
+SAML providers) lives under `packages/server/api/src/app/ee/` and is only
+*registered* for CLOUD/ENTERPRISE editions in `app.ts`. We deliberately did
+**not** try to flip `AP_EDITION=ee` with a fake license — that requires a
+real license key validated against Activepieces' own servers, which is out
+of scope and not something to bypass.
+
+Instead, the fix reuses `authenticationService.federatedAuthn()` — the
+actual find-or-create-identity-and-issue-session core logic — which lives
+in the **base (non-EE)** `authentication.service.ts` and has no license
+gating at all. We only had to write our own OIDC provider + a new,
+always-registered module that calls into that existing core.
+
+**On upgrade: re-check this premise.** If a future upstream version moves
+`federatedAuthn()` into `ee/`, or adds license/edition checks inside it,
+this whole approach needs to be reconsidered.
+
+## New files (should port forward with no conflicts)
+
+- `packages/server/api/src/app/authentication/keycloak-authn/keycloak-authn-provider.ts`
+  OIDC discovery (`.well-known/openid-configuration`), Authorization Code
+  exchange via `safeHttp.axios` (this repo's SSRF-safe HTTP client — see
+  `.claude/rules/safe-http.md`), id_token verification via `jwks-rsa` +
+  the existing `helper/jwt-utils.ts`. Mirrors
+  `ee/authentication/federated-authn/google-authn-provider.ts`'s shape
+  closely on purpose — if upstream changes that file's pattern
+  (e.g. a new shared OIDC helper that supersedes hand-rolling this), prefer
+  adopting the new pattern here too instead of keeping this hand-rolled.
+
+- `packages/server/api/src/app/authentication/keycloak-authn/keycloak-authn-module.ts`
+  Routes `GET /v1/authn/keycloak/login`, `POST /v1/authn/keycloak/claim`,
+  both public. Registered **unconditionally** in `app.ts` (not inside the
+  `ApEdition` switch), no-ops entirely unless `AP_KEYCLOAK_SSO_ENABLED=true`.
+  Calls `authenticationService.federatedAuthn()` with
+  `provider: UserIdentityProvider.KEYCLOAK` and
+  `predefinedPlatformId: await platformUtils.getPlatformIdForRequest(req)`
+  — that platform resolution is the important bit, see below.
+
+- `.github/workflows/refresquito-keycloak-build.yml`
+  Self-contained CI (plain `docker/build-push-action` + buildx) publishing
+  only to `ghcr.io/javivillar/activepieces`. Upstream's own
+  `release-self-hosted.yml` needs a paid Depot project token this fork
+  doesn't have — don't try to reuse it.
+
+- `packages/web/src/assets/img/custom/auth/keycloak.svg`
+  A generic Material-Symbols "key" glyph, **not** Keycloak's real logo
+  (avoids trademark issues in a fork). Same style as the existing
+  `saml.svg` (which is likewise a generic lock icon, not SAML's own mark).
+
+## Modified files (check these carefully on rebase — most likely to conflict)
+
+- **`packages/server/api/src/app/app.ts`**
+  Two added lines: import + `await app.register(keycloakAuthnModule)`,
+  placed right after `await app.register(authenticationModule)`, *outside*
+  the `switch (edition)` block. If upstream restructures that switch or
+  moves `authenticationModule`'s registration, just make sure
+  `keycloakAuthnModule` stays registered unconditionally (all editions),
+  not inside any one `case`.
+
+- **`packages/shared/src/lib/core/authentication/user-identity.ts`**
+  Added `KEYCLOAK = 'KEYCLOAK'` to `UserIdentityProvider`. **Do NOT** add it
+  to `authentication.service.ts`'s `signUp()` function's
+  `isFederatedProvider` check (`GOOGLE || JWT || SAML`) — that's
+  deliberate. Adding it there reproduces a real bug: a brand-new federated
+  user gets `verified: true` at creation, then `sendVerificationOrAutoVerify`
+  calls `userIdentityService.verify()` unconditionally for
+  `COMMUNITY`/`ENTERPRISE`, which throws `"User is already verified"`
+  because it's not idempotent. Leaving `KEYCLOAK` out means the identity
+  starts `verified: false` and that later `.verify()` call succeeds
+  normally. If upstream ever fixes `verify()` to be idempotent, this
+  constraint can be dropped and `KEYCLOAK` could be added to the list
+  (cosmetic only, no functional difference either way at that point).
+
+- **`packages/server/api/src/app/helper/system/system-props.ts`** +
+  **`packages/server/api/src/app/helper/system-validator.ts`**
+  New `AppSystemProp` entries (`KEYCLOAK_SSO_ENABLED`, `_ISSUER_URL`,
+  `_CLIENT_ID`, `_CLIENT_SECRET`) + their validators + a startup
+  fail-fast check (enabled but misconfigured → throws). Purely additive,
+  low conflict risk — just re-add if upstream reformats these files.
+
+- **`packages/server/api/src/app/flags/flag.service.ts`**
+  Added `ApFlagId.KEYCLOAK_SSO_ENABLED` to both the `In([...])` query list
+  and the pushed flag values array (`value:
+  system.getBoolean(AppSystemProp.KEYCLOAK_SSO_ENABLED) ?? false`). This is
+  how the frontend knows whether to render the button.
+
+- **`packages/shared/src/lib/core/flag/flag.ts`**
+  Added `KEYCLOAK_SSO_ENABLED = 'KEYCLOAK_SSO_ENABLED'` to `ApFlagId`.
+
+- **`packages/shared/src/lib/core/common/telemetry.ts`**
+  Widened `FederatedLoginStarted`'s `provider` union from
+  `'google' | 'saml'` to include `'keycloak'`. Purely a type change for our
+  own telemetry call in the frontend button.
+
+- **`packages/web/src/api/authentication-api.ts`**
+  Added `getKeycloakLoginUrl()` / `claimKeycloakRequest()`, calling the two
+  new backend routes. Straightforward, low conflict risk.
+
+- **`packages/web/src/features/authentication/components/third-party-logins.tsx`**
+  The most likely file to conflict on a real upstream merge, since it's
+  actively developed. Added:
+  - A `keycloakSsoEnabled` flag read + a `handleKeycloakClick` handler
+    using `oauth2Utils.openOAuth2Popup()` (**not**
+    `oauth2Utils.useThirdPartyLogin()`, which the Google button uses — see
+    "Real bug found in upstream" below for why).
+  - A new `<Button>` block, gated by `keycloakSsoEnabled`, styled/labeled
+    identically to the Google/SAML buttons already in this file.
+
+  On rebase: re-locate these two additions (the handler + the button JSX)
+  into whatever the file looks like upstream, keeping the same pattern —
+  don't try to line-for-line patch if the surrounding code moved.
+
+- **`packages/web/public/locales/en/translation.json`**
+  Added `"Keycloak": "Keycloak"`. Trivial.
+
+- **`Dockerfile`** and **`package.json`** (root)
+  See "Build-environment fixes" below — these are environment-specific,
+  not feature code. **Re-evaluate whether they're still needed** rather
+  than blindly reapplying; the underlying Debian/npm-registry state may
+  have changed by the time you're reading this.
+
+## Real bug found in upstream (informational, not fixed here)
+
+`third-party-logins.tsx`'s existing **Google** button uses
+`oauth2Utils.useThirdPartyLogin()`, which does a **full-page redirect**
+(`window.location.href = ...`) to the provider. The backend's own
+`/redirect` handler (registered directly in `app.ts`, outside any edition
+switch) only does `window.opener.postMessage(...)` — which requires the
+auth flow to have been opened as a **popup**, so there's a `window.opener`
+to post back to. A full-page redirect has no opener, so that response page
+is a dead end for that flow in this exact deployment topology (single
+origin serving both the SPA and the API, no separate popup step).
+
+We did **not** fix the Google button — out of scope, and it may only ever
+be exercised on Activepieces' own Cloud SaaS where the topology could
+differ. Our Keycloak button avoids the same trap by using
+`oauth2Utils.openOAuth2Popup()` instead (real popup + postMessage capture,
+the same mechanism already used successfully by piece OAuth2 connections).
+If you're rebasing and upstream has since fixed the Google button, look at
+how they fixed it — our approach might become redundant with a shared
+helper at that point.
+
+## Build-environment fixes (unrelated to the Keycloak feature)
+
+Three commits, entirely about getting `docker build .` to succeed on
+**this fork's own CI** (plain GitHub Actions, no Depot) as of 2026-09-17 —
+none of this touches application behavior:
+
+1. **`Dockerfile`**: bullseye's `debian-security` apt repo had vanished
+   from `deb.debian.org`'s CDN (every file 404s). Dropped that one
+   `sources.list` line.
+2. **`Dockerfile`**: the base image's `libc6`/`perl-base` are already a
+   point release newer than what `debian bullseye/main` offers (that newer
+   build only ever lived in the now-gone security repo). Fixed by naming
+   them explicitly with `--allow-downgrades` **and** an exact version pin
+   (`libc6=2.31-13+deb11u11 perl-base=5.32.1-4+deb11u3`) — naming them bare
+   is a no-op since apt considers the already-installed newer one to
+   satisfy an unversioned request.
+3. **`package.json`**: removed `redis-memory-server` from
+   `trustedDependencies`. It's a real (non-dev) dependency used only for an
+   optional `AP_REDIS_TYPE=MEMORY` embedded-Redis mode
+   (`database/redis/memory-redis.ts`) that this fork's deployment never
+   uses (always a real bundled Redis). Its postinstall tries to compile
+   bundled Redis Stack modules (Bloom/Search/JSON/TimeSeries), needing
+   `cmake` and Redis's own Python-based "readies" build tooling — chasing
+   that toolchain wasn't worth it for a script whose output is never used
+   here. The package itself still installs and imports fine; only its
+   postinstall is skipped.
+
+**On upgrade**: try dropping all three first. `deb.debian.org`'s
+`debian-security` repo being gone might be a permanent bullseye-EOL thing
+(worth checking whether a newer `node:*-bullseye-slim` tag even still
+exists, or whether upstream has moved to bookworm) or might have been a
+transient/date-specific state. Re-test a plain `docker build .` before
+reapplying any of these.
+
+## What's intentionally NOT done
+
+- No Keycloak group-based access gating (any successfully-authenticated
+  Keycloak user who's also invited to the platform gets in) — this
+  deployment's chart deliberately keeps it simple; add a
+  `groups`-claim check in `keycloak-authn-module.ts`'s claim handler if
+  that's ever needed.
+- No changes to the existing Google/SAML EE code paths, beyond widening one
+  shared type (`FederatedLoginStarted`).
+- No attempt to fix `useThirdPartyLogin()`'s full-page-redirect issue for
+  the Google button (see above).
