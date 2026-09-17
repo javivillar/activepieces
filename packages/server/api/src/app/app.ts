@@ -15,6 +15,7 @@ import { platformAnalyticsModule } from './analytics/platform-analytics.module'
 import { setPlatformOAuthService } from './app-connection/app-connection-service/oauth2'
 import { appConnectionModule } from './app-connection/app-connection.module'
 import { platformAppConnectionModule } from './app-connection/platform-app-connection.module'
+import { auditLogModule } from './audit-logs/audit-log-module'
 import { authenticationModule } from './authentication/authentication.module'
 import { keycloakAuthnModule } from './authentication/keycloak-authn/keycloak-authn-module'
 import { canaryRoutingMiddleware } from './core/canary/canary-routing.middleware'
@@ -333,6 +334,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
         case ApEdition.COMMUNITY:
             await app.register(platformProjectModule)
             await app.register(communityPiecesModule)
+            await app.register(auditLogModule)
             break
     }
 

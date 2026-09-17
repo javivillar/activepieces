@@ -117,7 +117,11 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     eventStreamingEnabled: false,
     analyticsEnabled: true,
     showPoweredBy: false,
-    auditLogEnabled: false,
+    // Refresquito fork: audit logging is now backed by this deployment's own
+    // Community-native module (server/api/src/app/audit-logs/, no ee/ import)
+    // instead of the upstream Enterprise one -- this flag just unlocks the
+    // already edition-agnostic frontend page/UI for it.
+    auditLogEnabled: true,
     managePiecesEnabled: false,
     manageTemplatesEnabled: false,
     customAppearanceEnabled: false,
