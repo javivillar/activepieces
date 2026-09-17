@@ -121,7 +121,13 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     managePiecesEnabled: false,
     manageTemplatesEnabled: false,
     customAppearanceEnabled: false,
-    teamProjectsLimit: TeamProjectsLimit.ONE,
+    // Refresquito fork: upstream caps Community self-hosted at exactly one
+    // TEAM project (a plan config value, not a real technical constraint --
+    // TeamProjectsLimit.UNLIMITED is already a first-class enum value,
+    // assertMaximumNumberOfProjectsReachedByEdition() just breaks with no
+    // check for it). Lifted so this deployment can have more than one
+    // shared project.
+    teamProjectsLimit: TeamProjectsLimit.UNLIMITED,
     projectRolesEnabled: false,
     apiKeysEnabled: false,
     ssoEnabled: false,
