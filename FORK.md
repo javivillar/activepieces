@@ -220,6 +220,66 @@ mutable/floating image tag (this fork's own CI overwrites
 running a stale cached image under the same tag string, with no visible
 error. Bit us once deploying this exact feature.
 
+## Editor/Viewer flow-edit permission via a shared TEAM project (added after the access gate)
+
+User asked: a group/role mechanism to control who can edit a given
+process ("proceso" = flow), as an admin-only function (no self-service).
+Researched before writing any code:
+
+- Activepieces already ships a complete project-role RBAC system
+  (`DefaultProjectRole.ADMIN`/`EDITOR`/`VIEWER`, resolved to permissions
+  in `packages/shared/src/lib/ee/authn/access-control-list.ts` —
+  `WRITE_FLOW` for Admin/Editor, read-only for Viewer) and
+  `OPEN_SOURCE_PLAN.teamProjectsLimit = TeamProjectsLimit.ONE` — the
+  Community plan explicitly allows **exactly one** TEAM project. This is
+  a real, designed-in capability, just unregistered outside CLOUD/
+  ENTERPRISE in `app.ts`, same pattern as everything else in this fork.
+- **Important limit, true at every edition including paid ones**:
+  permission granularity is per-PROJECT, not per-individual-flow.
+  Activepieces has no "can edit flow A but not flow B in the same
+  project" concept anywhere. If truly per-flow isolation is ever needed,
+  the only lever is separate projects per group of flows (Community's
+  plan caps that at one extra TEAM project, though).
+- Confirmed the actual enforcement path has no Community gate:
+  `rbacService.assertPrinicpalAccessToProject()` (wired into every
+  `securityAccess.project(...)` route, including `POST /v1/flows` and
+  the flow-operation endpoint) has zero edition check. A separate,
+  more granular function, `assertUserHasPermissionToFlow()`, DOES
+  no-op for Community — but it's redundant for our purposes: it keys on
+  the same `UPDATE_FLOW_STATUS`/`WRITE_FLOW` permissions the route-level
+  check already enforces, so Viewer is still correctly blocked before
+  ever reaching that no-op'd extra check.
+
+**Implementation**: `syncSharedProjectRoleFromGroups()` in
+`keycloak-authn-module.ts`, called after the platformRole sync. No-ops
+entirely unless `AP_KEYCLOAK_SHARED_PROJECT_ID` is set (an admin creates
+the one TEAM project once, e.g. via `POST /v1/projects` — already
+registered in Community, no fork change needed for that part — and
+passes its id). `AP_KEYCLOAK_EDITOR_GROUP`/`_VIEWER_GROUP` (default
+`activepieces-editor`/`activepieces-viewer`) decide the role via
+`projectMemberService.upsert()`/`.delete()`, imported directly from
+`ee/projects/project-members/project-member.service` — same pragmatic
+CE→EE import already established for `otpService` in
+`authentication.service.ts` and `federatedAuthnService` in
+`flag.service.ts` (pre-existing patterns in this codebase, not something
+we introduced). Platform admins and the platform owner are skipped
+(`userService.isUserPrivileged` already gives them access to every
+project — an explicit membership row would be redundant, not wrong,
+just noise). Editor/viewer groups were also added to
+`assertGroupAccessAllowed()` — otherwise someone added only to
+`activepieces-editor` couldn't complete SSO login at all.
+
+**Verified live, full lifecycle, real permission enforcement (not just
+the DB row)**: `test-a` with no group → (blocked by the access gate, see
+above) → added to `activepieces-editor` → real `project_member` row
+with role `Editor` appeared → **created an actual flow via `POST
+/v1/flows` as that user, 201** → moved to `activepieces-viewer` → role
+row updated to `Viewer` → **tried creating a flow again, got a real 403
+`PERMISSION_DENIED` naming `WRITE_FLOW` as the missing permission** →
+removed from both groups (kept only in `activepieces-user`) → the
+`project_member` row was deleted entirely, confirming demotion-to-none
+also works, not just role swaps.
+
 ## Keycloak group as an access gate (added after group-role sync)
 
 `assertGroupAccessAllowed()` runs in the `/claim` handler **before**
