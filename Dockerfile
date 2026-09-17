@@ -42,7 +42,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
         ca-certificates \
         iptables \
-        libcap-dev && \
+        libcap-dev \
+        cmake \
+        pkg-config && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     yarn config set python /usr/bin/python3 && \
     sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen en_US.UTF-8
