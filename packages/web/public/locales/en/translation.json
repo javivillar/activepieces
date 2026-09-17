@@ -1508,6 +1508,7 @@
   "Google": "Google",
   "Sign in With": "Sign in With",
   "SAML": "SAML",
+  "Keycloak": "Keycloak",
   "Email has been verified. You will be redirected to sign in...": "Email has been verified. You will be redirected to sign in...",
   "Verifying email...": "Verifying email...",
   "invitation has expired, once you sign in again you will be able to resend the verification email.": "invitation has expired, once you sign in again you will be able to resend the verification email.",
