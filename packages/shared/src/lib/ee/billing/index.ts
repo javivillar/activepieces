@@ -111,7 +111,12 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     chatEnabled: false,
     dataManipulationEnabled: false,
     globalConnectionsEnabled: false,
-    customRolesEnabled: false,
+    // Refresquito fork: custom project roles are pure CRUD + a generic
+    // permission-array check (rbacService.assertPrinicpalAccessToProject
+    // reads ProjectRole.permissions the same way for default and custom
+    // roles, no license/edition check anywhere in that path) -- no new code
+    // needed, just unlocking the already-built service/module/frontend.
+    customRolesEnabled: true,
     includedAiCredits: 0,
     environmentsEnabled: false,
     eventStreamingEnabled: false,
@@ -132,7 +137,13 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     // check for it). Lifted so this deployment can have more than one
     // shared project.
     teamProjectsLimit: TeamProjectsLimit.UNLIMITED,
-    projectRolesEnabled: false,
+    // Unlocks /v1/project-members (assign/remove members, change role) --
+    // pairs with customRolesEnabled above for granular per-project
+    // authorization. Complementary to, not conflicting with, the existing
+    // Keycloak group -> DefaultProjectRole sync in keycloak-authn-module.ts:
+    // both act on the same project_member/project_role tables, this just
+    // also lets a platform admin manage it by hand via the UI.
+    projectRolesEnabled: true,
     apiKeysEnabled: false,
     ssoEnabled: false,
     secretManagersEnabled: false,
