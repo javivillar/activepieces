@@ -63,7 +63,7 @@ const ThirdPartyLogin = React.memo(
           redirectUrl: window.location.origin,
         });
         const data = await authenticationApi.claimKeycloakRequest({ code });
-        authenticationSession.saveResponse(data, false, true);
+        authenticationSession.saveResponse(data, false, data.keycloakIdToken);
         if (isNil(data.projectId)) {
           navigate('/create-platform');
           return;

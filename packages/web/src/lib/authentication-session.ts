@@ -14,6 +14,7 @@ import { ApStorage } from './ap-browser-storage';
 const tokenKey = 'token';
 const projectIdKey = 'projectId';
 const keycloakSsoKey = 'keycloakSso';
+const keycloakIdTokenKey = 'keycloakIdToken';
 export const authenticationSession = {
   setProjectId(projectId: string) {
     ApStorage.getInstance().setItem(projectIdKey, projectId);
@@ -21,7 +22,7 @@ export const authenticationSession = {
   saveResponse(
     response: AuthenticationResponse,
     isEmbedding: boolean,
-    isKeycloakSso = false,
+    keycloakIdToken?: string,
   ) {
     if (isEmbedding) {
       ApStorage.setInstanceToSessionStorage();
@@ -30,8 +31,9 @@ export const authenticationSession = {
     if (!isNil(response.projectId)) {
       ApStorage.getInstance().setItem(projectIdKey, response.projectId);
     }
-    if (isKeycloakSso) {
+    if (!isNil(keycloakIdToken)) {
       ApStorage.getInstance().setItem(keycloakSsoKey, 'true');
+      ApStorage.getInstance().setItem(keycloakIdTokenKey, keycloakIdToken);
     }
     queryClient.invalidateQueries({ queryKey: ['flags'] });
     window.dispatchEvent(new Event('storage'));
@@ -135,10 +137,13 @@ export const authenticationSession = {
     ApStorage.getInstance().removeItem(projectIdKey);
     ApStorage.getInstance().removeItem(tokenKey);
     ApStorage.getInstance().removeItem(keycloakSsoKey);
+    ApStorage.getInstance().removeItem(keycloakIdTokenKey);
   },
   logOut() {
     const wasKeycloakSso =
       ApStorage.getInstance().getItem(keycloakSsoKey) === 'true';
+    const keycloakIdToken =
+      ApStorage.getInstance().getItem(keycloakIdTokenKey) ?? undefined;
     this.clearSession();
     if (!wasKeycloakSso) {
       window.location.href = '/sign-in';
@@ -148,8 +153,11 @@ export const authenticationSession = {
     // session: Keycloak keeps its own SSO cookie, so clicking "Sign in with
     // Keycloak" again would silently re-authenticate without ever prompting
     // for credentials. End the Keycloak session too (RP-initiated logout).
+    // id_token_hint is required for Keycloak to end it silently -- without
+    // it, Keycloak shows an interactive "Do you want to log out?" page
+    // instead.
     authenticationApi
-      .getKeycloakLogoutUrl()
+      .getKeycloakLogoutUrl(keycloakIdToken)
       .then(({ logoutUrl }) => {
         window.location.href = logoutUrl;
       })

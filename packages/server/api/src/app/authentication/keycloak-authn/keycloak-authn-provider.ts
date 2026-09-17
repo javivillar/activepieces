@@ -28,21 +28,27 @@ export const keycloakAuthnProvider = (_log: FastifyBaseLogger) => ({
     async authenticate(params: AuthenticateParams): Promise<KeycloakIdToken> {
         const { issuerUrl, clientId, clientSecret, authorizationCode } = params
         const discovery = await getDiscoveryDocument(issuerUrl)
-        const idToken = await exchangeCodeForIdToken({
+        const rawIdToken = await exchangeCodeForIdToken({
             tokenEndpoint: discovery.token_endpoint,
             clientId,
             clientSecret,
             code: authorizationCode,
         })
-        return verifyIdToken({ issuerUrl, clientId, idToken, jwksUri: discovery.jwks_uri })
+        const claims = await verifyIdToken({ issuerUrl, clientId, idToken: rawIdToken, jwksUri: discovery.jwks_uri })
+        return { ...claims, rawIdToken }
     },
 
     async getLogoutUrl(params: GetLogoutUrlParams): Promise<string> {
-        const { issuerUrl, clientId } = params
+        const { issuerUrl, clientId, idTokenHint } = params
         const discovery = await getDiscoveryDocument(issuerUrl)
         const logoutUrl = new URL(discovery.end_session_endpoint)
         logoutUrl.searchParams.set('client_id', clientId)
         logoutUrl.searchParams.set('post_logout_redirect_uri', await getPostLogoutRedirectUrl())
+        // Without id_token_hint, Keycloak shows an interactive "Do you want to
+        // log out?" confirmation page instead of ending the session directly.
+        if (!isNil(idTokenHint)) {
+            logoutUrl.searchParams.set('id_token_hint', idTokenHint)
+        }
         return logoutUrl.href
     },
 })
@@ -172,6 +178,7 @@ type ExchangeCodeParams = {
 type GetLogoutUrlParams = {
     issuerUrl: string
     clientId: string
+    idTokenHint?: string
 }
 
 type VerifyIdTokenParams = {
@@ -187,4 +194,5 @@ export type KeycloakIdToken = {
     lastName: string
     imageUrl?: string
     groups: string[]
+    rawIdToken?: string
 }

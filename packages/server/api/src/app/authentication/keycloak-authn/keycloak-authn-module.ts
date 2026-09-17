@@ -41,6 +41,7 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
         const logoutUrl = await keycloakAuthnProvider(req.log).getLogoutUrl({
             issuerUrl: system.getOrThrow(AppSystemProp.KEYCLOAK_ISSUER_URL),
             clientId: system.getOrThrow(AppSystemProp.KEYCLOAK_CLIENT_ID),
+            idTokenHint: req.query.idTokenHint,
         })
         return { logoutUrl }
     })
@@ -83,7 +84,7 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
                 },
             })
         }
-        return response
+        return { ...response, keycloakIdToken: idToken.rawIdToken }
     })
 }
 
@@ -200,7 +201,11 @@ const LogoutRequestSchema = {
     config: {
         security: securityAccess.public(),
     },
-    schema: {},
+    schema: {
+        querystring: z.object({
+            idTokenHint: z.string().optional(),
+        }),
+    },
 }
 
 const ClaimRequestSchema = {
