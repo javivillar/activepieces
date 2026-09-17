@@ -5,6 +5,12 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
+# bullseye-security specifically (not main/updates, both fine) 404s on every
+# package on deb.debian.org's CDN — that repo's snapshot for bullseye is gone.
+# Drop just that line; none of the packages below need a security-pinned
+# version beyond what's already in the base image.
+RUN sed -i '/debian-security/d' /etc/apt/sources.list
+
 # Install all system dependencies in a single layer with cache mounts
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
