@@ -5,13 +5,15 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
-# bullseye (Debian 11) is past its regular support window — deb.debian.org/
-# debian-security 404s on individual package files even though apt-get update
-# still succeeds (stale index). Repoint at the permanent archive instead.
+# bullseye (Debian 11) is past its regular support window — deb.debian.org
+# 404s on individual package files even though apt-get update still succeeds
+# (stale index). Repoint main at the permanent archive (which keeps every EOL
+# suite indefinitely); drop the debian-security line entirely since
+# archive.debian.org never mirrored it under bullseye-security and none of
+# our packages require a security-specific point release.
 RUN sed -i \
         -e 's|deb.debian.org|archive.debian.org|g' \
-        -e 's|security.debian.org|archive.debian.org/debian-security|g' \
-        -e '/bullseye-updates/d' \
+        -e '/debian-security/d' \
         /etc/apt/sources.list && \
     echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
 
