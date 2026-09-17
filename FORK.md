@@ -192,13 +192,36 @@ exists, or whether upstream has moved to bookworm) or might have been a
 transient/date-specific state. Re-test a plain `docker build .` before
 reapplying any of these.
 
+## Keycloak group → platformRole sync (added after the initial PR)
+
+Requests `groups` in the OAuth scope and reads the id_token's `groups`
+claim (plain names, not full paths — depends on the realm's `groups`
+client scope mapper having `full.path=false`; check this on a different
+Keycloak instance). `keycloak-authn-module.ts`'s `syncPlatformRoleFromGroups()`
+runs after every `federatedAuthn()` call and calls `userService.update()`
+to promote/demote between `PlatformRole.ADMIN`/`MEMBER` based on
+membership in the group named by `AP_KEYCLOAK_ADMIN_GROUP` (default
+`activepieces-admin`) — **both directions**, but the platform owner is
+never touched (avoids a self-lockout footgun). Verified live, bidirectionally,
+against a real Keycloak group.
+
+Deliberately implemented as a post-processing step here rather than
+threading a `platformRole` param through `authenticationService
+.federatedAuthn()` → `signUp()` → `userService.getOrCreateWithProject()`
+(which hardcodes `PlatformRole.MEMBER` for every newly-created user,
+federated or not) — smaller diff, works uniformly for both the new-user
+and existing-user code paths, lower conflict risk on rebase.
+
+**Deployment gotcha, unrelated to the code itself**: if you're using a
+mutable/floating image tag (this fork's own CI overwrites
+`refresquito-keycloak-sso` on every push), make sure the chart's
+`imagePullPolicy` is `Always`, not the default `IfNotPresent` — otherwise
+`helm upgrade` can "successfully roll out" a pod that's silently still
+running a stale cached image under the same tag string, with no visible
+error. Bit us once deploying this exact feature.
+
 ## What's intentionally NOT done
 
-- No Keycloak group-based access gating (any successfully-authenticated
-  Keycloak user who's also invited to the platform gets in) — this
-  deployment's chart deliberately keeps it simple; add a
-  `groups`-claim check in `keycloak-authn-module.ts`'s claim handler if
-  that's ever needed.
 - No changes to the existing Google/SAML EE code paths, beyond widening one
   shared type (`FederatedLoginStarted`).
 - No attempt to fix `useThirdPartyLogin()`'s full-page-redirect issue for
