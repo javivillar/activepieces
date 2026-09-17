@@ -220,6 +220,27 @@ mutable/floating image tag (this fork's own CI overwrites
 running a stale cached image under the same tag string, with no visible
 error. Bit us once deploying this exact feature.
 
+## Keycloak group as an access gate (added after group-role sync)
+
+`assertGroupAccessAllowed()` runs in the `/claim` handler **before**
+`federatedAuthn()` is ever called: a Keycloak user who is in neither
+`AP_KEYCLOAK_ADMIN_GROUP` nor the new `AP_KEYCLOAK_USER_GROUP` (default
+`activepieces-user`) gets an immediate 403 (`ErrorCode.AUTHORIZATION`) and
+never reaches Activepieces' own account-creation/invitation logic at all.
+Group membership is now the real access control, layered on top of (not
+instead of) Activepieces' own invitation-only sign-up gate — both must
+pass for a brand-new identity; an *existing* identity (matched by email)
+still needs to be in one of these two groups too, every login, not just
+once at signup.
+
+**Don't forget the platform owner**: the owner-skip in
+`syncPlatformRoleFromGroups()` only protects their *role* from being
+changed — it does NOT exempt them from this access gate. If the owner's
+own Keycloak user isn't in either group, they get locked out of SSO login
+entirely (their native email/password login still works, since that's a
+separate code path). Make sure whoever holds the platform owner account is
+in `AP_KEYCLOAK_ADMIN_GROUP` before enabling this in a fresh environment.
+
 ## What's intentionally NOT done
 
 - No changes to the existing Google/SAML EE code paths, beyond widening one
