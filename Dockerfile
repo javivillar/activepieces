@@ -5,11 +5,30 @@ ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
     LC_ALL=en_US.UTF-8
 
+# bullseye-security specifically (not main/updates, both fine) 404s on every
+# package on deb.debian.org's CDN — that repo's snapshot for bullseye is gone.
+# Drop just that line; none of the packages below need a security-pinned
+# version beyond what's already in the base image.
+#
+# That leaves one more wrinkle: the base image's own libc6/perl-base are
+# already at a newer point release (2.31-13+deb11u13 / 5.32.1-4+deb11u4)
+# than what remains in main (u11 / u3) — those newer builds only ever lived
+# in the now-gone debian-security snapshot. libc6-dev/perl in main exact-pin
+# to the older main-suite version, so apt refuses to touch already-installed
+# libc6/perl-base without --allow-downgrades — and --allow-downgrades only
+# applies to packages named explicitly (with an exact target version; naming
+# them bare is a no-op since apt considers the newer installed one to already
+# satisfy an unversioned request) on the command line, not ones pulled in
+# transitively.
+RUN sed -i '/debian-security/d' /etc/apt/sources.list
+
 # Install all system dependencies in a single layer with cache mounts
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends --allow-downgrades \
+        libc6=2.31-13+deb11u11 \
+        perl-base=5.32.1-4+deb11u3 \
         openssh-client \
         python3 \
         g++ \
@@ -23,7 +42,10 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         curl \
         ca-certificates \
         iptables \
-        libcap-dev && \
+        libcap-dev \
+        cmake \
+        pkg-config && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     yarn config set python /usr/bin/python3 && \
     sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen en_US.UTF-8

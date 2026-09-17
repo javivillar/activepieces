@@ -34,6 +34,15 @@ export const authenticationApi = {
       providerName,
     });
   },
+  getKeycloakLoginUrl() {
+    return api.get<FederatedAuthnLoginResponse>('/v1/authn/keycloak/login');
+  },
+  claimKeycloakRequest(request: { code: string }) {
+    return api.post<AuthenticationResponse>(
+      '/v1/authn/keycloak/claim',
+      request,
+    );
+  },
   getCurrentProjectRole(query: GetCurrentProjectMemberRoleQuery) {
     return api.get<ProjectRole | null>('/v1/project-members/role', query);
   },

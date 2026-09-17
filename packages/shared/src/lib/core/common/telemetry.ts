@@ -172,7 +172,7 @@ type SignInFailed = {
 }
 
 type FederatedLoginStarted = {
-    provider: 'google' | 'saml'
+    provider: 'google' | 'saml' | 'keycloak'
 }
 
 type SignedIn = {

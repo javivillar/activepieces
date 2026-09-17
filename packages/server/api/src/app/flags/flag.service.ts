@@ -50,6 +50,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
                 ApFlagId.THEME,
                 ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL,
                 ApFlagId.THIRD_PARTY_AUTH_PROVIDERS_TO_SHOW_MAP,
+                ApFlagId.KEYCLOAK_SSO_ENABLED,
                 ApFlagId.SAML_AUTH_ACS_URL,
                 ApFlagId.USER_CREATED,
                 ApFlagId.WEBHOOK_URL_PREFIX,
@@ -172,6 +173,12 @@ export const flagService = (log: FastifyBaseLogger) => ({
             {
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL,
                 value: await federatedAuthnService(log).getThirdPartyRedirectUrl(),
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.KEYCLOAK_SSO_ENABLED,
+                value: system.getBoolean(AppSystemProp.KEYCLOAK_SSO_ENABLED) ?? false,
                 created,
                 updated,
             },
