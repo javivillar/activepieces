@@ -37,6 +37,9 @@ export const authenticationApi = {
   getKeycloakLoginUrl() {
     return api.get<FederatedAuthnLoginResponse>('/v1/authn/keycloak/login');
   },
+  getKeycloakLogoutUrl() {
+    return api.get<{ logoutUrl: string }>('/v1/authn/keycloak/logout');
+  },
   claimKeycloakRequest(request: { code: string }) {
     return api.post<AuthenticationResponse>(
       '/v1/authn/keycloak/claim',

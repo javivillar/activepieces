@@ -36,6 +36,15 @@ export const keycloakAuthnProvider = (_log: FastifyBaseLogger) => ({
         })
         return verifyIdToken({ issuerUrl, clientId, idToken, jwksUri: discovery.jwks_uri })
     },
+
+    async getLogoutUrl(params: GetLogoutUrlParams): Promise<string> {
+        const { issuerUrl, clientId } = params
+        const discovery = await getDiscoveryDocument(issuerUrl)
+        const logoutUrl = new URL(discovery.end_session_endpoint)
+        logoutUrl.searchParams.set('client_id', clientId)
+        logoutUrl.searchParams.set('post_logout_redirect_uri', await getPostLogoutRedirectUrl())
+        return logoutUrl.href
+    },
 })
 
 async function getDiscoveryDocument(issuerUrl: string): Promise<OidcDiscoveryDocument> {
@@ -117,10 +126,15 @@ async function getRedirectUrl(): Promise<string> {
     return domainHelper.getInternalUrl({ path: '/redirect' })
 }
 
+async function getPostLogoutRedirectUrl(): Promise<string> {
+    return domainHelper.getInternalUrl({ path: '/sign-in' })
+}
+
 type OidcDiscoveryDocument = {
     authorization_endpoint: string
     token_endpoint: string
     jwks_uri: string
+    end_session_endpoint: string
 }
 
 type IdTokenPayloadRaw = {
@@ -153,6 +167,11 @@ type ExchangeCodeParams = {
     clientId: string
     clientSecret: string
     code: string
+}
+
+type GetLogoutUrlParams = {
+    issuerUrl: string
+    clientId: string
 }
 
 type VerifyIdTokenParams = {

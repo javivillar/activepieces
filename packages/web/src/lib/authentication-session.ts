@@ -13,17 +13,25 @@ import { queryClient } from '@/app/query-client';
 import { ApStorage } from './ap-browser-storage';
 const tokenKey = 'token';
 const projectIdKey = 'projectId';
+const keycloakSsoKey = 'keycloakSso';
 export const authenticationSession = {
   setProjectId(projectId: string) {
     ApStorage.getInstance().setItem(projectIdKey, projectId);
   },
-  saveResponse(response: AuthenticationResponse, isEmbedding: boolean) {
+  saveResponse(
+    response: AuthenticationResponse,
+    isEmbedding: boolean,
+    isKeycloakSso = false,
+  ) {
     if (isEmbedding) {
       ApStorage.setInstanceToSessionStorage();
     }
     ApStorage.getInstance().setItem(tokenKey, response.token);
     if (!isNil(response.projectId)) {
       ApStorage.getInstance().setItem(projectIdKey, response.projectId);
+    }
+    if (isKeycloakSso) {
+      ApStorage.getInstance().setItem(keycloakSsoKey, 'true');
     }
     queryClient.invalidateQueries({ queryKey: ['flags'] });
     window.dispatchEvent(new Event('storage'));
@@ -126,10 +134,28 @@ export const authenticationSession = {
   clearSession() {
     ApStorage.getInstance().removeItem(projectIdKey);
     ApStorage.getInstance().removeItem(tokenKey);
+    ApStorage.getInstance().removeItem(keycloakSsoKey);
   },
   logOut() {
+    const wasKeycloakSso =
+      ApStorage.getInstance().getItem(keycloakSsoKey) === 'true';
     this.clearSession();
-    window.location.href = '/sign-in';
+    if (!wasKeycloakSso) {
+      window.location.href = '/sign-in';
+      return;
+    }
+    // A plain redirect to /sign-in isn't enough for a Keycloak-authenticated
+    // session: Keycloak keeps its own SSO cookie, so clicking "Sign in with
+    // Keycloak" again would silently re-authenticate without ever prompting
+    // for credentials. End the Keycloak session too (RP-initiated logout).
+    authenticationApi
+      .getKeycloakLogoutUrl()
+      .then(({ logoutUrl }) => {
+        window.location.href = logoutUrl;
+      })
+      .catch(() => {
+        window.location.href = '/sign-in';
+      });
   },
 };
 
