@@ -20,7 +20,7 @@ export const keycloakAuthnProvider = (_log: FastifyBaseLogger) => ({
         const loginUrl = new URL(discovery.authorization_endpoint)
         loginUrl.searchParams.set('client_id', clientId)
         loginUrl.searchParams.set('redirect_uri', await getRedirectUrl())
-        loginUrl.searchParams.set('scope', 'openid email profile')
+        loginUrl.searchParams.set('scope', 'openid email profile groups')
         loginUrl.searchParams.set('response_type', 'code')
         return loginUrl.href
     },
@@ -109,6 +109,7 @@ async function verifyIdToken(params: VerifyIdTokenParams): Promise<KeycloakIdTok
         firstName: payload.given_name ?? payload.preferred_username ?? 'Keycloak',
         lastName: payload.family_name ?? '',
         imageUrl: payload.picture,
+        groups: payload.groups ?? [],
     }
 }
 
@@ -129,6 +130,7 @@ type IdTokenPayloadRaw = {
     family_name?: string
     preferred_username?: string
     picture?: string
+    groups?: string[]
     sub: string
     aud: string
     iss: string
@@ -165,4 +167,5 @@ export type KeycloakIdToken = {
     firstName: string
     lastName: string
     imageUrl?: string
+    groups: string[]
 }

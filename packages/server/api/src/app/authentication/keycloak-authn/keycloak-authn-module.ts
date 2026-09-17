@@ -1,4 +1,5 @@
-import { ApplicationEventName, isNil, UserIdentityProvider } from '@activepieces/shared'
+import { ApplicationEventName, AuthenticationResponse, isNil, PlatformRole, UserIdentityProvider } from '@activepieces/shared'
+import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
@@ -6,9 +7,13 @@ import { applicationEvents } from '../../helper/application-events'
 import { networkUtils } from '../../helper/network-utils'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
+import { platformService } from '../../platform/platform.service'
 import { platformUtils } from '../../platform/platform.utils'
+import { userService } from '../../user/user-service'
 import { authenticationService } from '../authentication.service'
 import { keycloakAuthnProvider } from './keycloak-authn-provider'
+
+const DEFAULT_ADMIN_GROUP = 'activepieces-admin'
 
 export const keycloakAuthnModule: FastifyPluginAsyncZod = async (app) => {
     if (!(system.getBoolean(AppSystemProp.KEYCLOAK_SSO_ENABLED) ?? false)) {
@@ -48,6 +53,8 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
             imageUrl: idToken.imageUrl,
         })
 
+        await syncPlatformRoleFromGroups(req.log, response, idToken.groups)
+
         if (!isNil(response.platformId)) {
             applicationEvents(req.log).sendUserEvent({
                 platformId: response.platformId,
@@ -63,6 +70,27 @@ const keycloakAuthnController: FastifyPluginAsyncZod = async (app) => {
         }
         return response
     })
+}
+
+async function syncPlatformRoleFromGroups(log: FastifyBaseLogger, response: AuthenticationResponse, groups: string[]): Promise<void> {
+    if (isNil(response.platformId)) {
+        return
+    }
+    const platform = await platformService(log).getOneOrThrow(response.platformId)
+    if (platform.ownerId === response.id) {
+        return
+    }
+    const adminGroup = system.get(AppSystemProp.KEYCLOAK_ADMIN_GROUP) ?? DEFAULT_ADMIN_GROUP
+    const desiredRole = groups.includes(adminGroup) ? PlatformRole.ADMIN : PlatformRole.MEMBER
+    if (response.platformRole === desiredRole) {
+        return
+    }
+    await userService(log).update({
+        id: response.id,
+        platformId: response.platformId,
+        platformRole: desiredRole,
+    })
+    response.platformRole = desiredRole
 }
 
 const LoginRequestSchema = {
