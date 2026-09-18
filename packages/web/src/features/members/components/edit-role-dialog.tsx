@@ -1,4 +1,4 @@
-import { ProjectMemberWithUser } from '@activepieces/shared';
+import { RefresquitoProjectMemberWithUser } from '@activepieces/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { t } from 'i18next';
 import { Pencil } from 'lucide-react';
@@ -22,7 +22,7 @@ import { projectMembersApi } from '../api/project-members-api';
 import { RoleSelector } from './role-selector';
 
 interface EditRoleDialogProps {
-  member: ProjectMemberWithUser;
+  member: RefresquitoProjectMemberWithUser;
   onSave: () => void;
   disabled: boolean;
 }

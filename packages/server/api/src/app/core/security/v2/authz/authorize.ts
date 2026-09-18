@@ -1,8 +1,8 @@
 import { ActivepiecesError, ErrorCode, isNil, Permission, PlatformRole, Principal, PrincipalType, UserIdentityProvider } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { userIdentityService } from '../../../../authentication/user-identity/user-identity-service'
-import { rbacService } from '../../../../ee/authentication/project-role/rbac-service'
-import { projectMemberService } from '../../../../ee/projects/project-members/project-member.service'
+import { refresquitoProjectMemberService } from '../../../../refresquito/rbac/project-member.service'
+import { refresquitoRbacService } from '../../../../refresquito/rbac/rbac.service'
 import { userService } from '../../../../user/user-service'
 import { AuthorizationRouteSecurity, ProjectAuthorizationConfig } from '../../authorization/authorization'
 import { AuthorizationType, RouteKind } from '../../authorization/common'
@@ -59,7 +59,7 @@ async function assertNonEmbedOrAdmin(principal: Principal, log: FastifyBaseLogge
             },
         })
     }
-    const hasInvitePermission = await projectMemberService(log).hasPermissionOnAnyProject({
+    const hasInvitePermission = await refresquitoProjectMemberService(log).hasPermissionOnAnyProject({
         userId: user.id,
         platformId: user.platformId,
         permission: Permission.WRITE_INVITATION,
@@ -99,7 +99,7 @@ async function assertAccessToProject(principal: Principal, projectSecurity: Proj
             },
         })
     }
-    await rbacService(log).assertPrinicpalAccessToProject({ principal, permission: projectSecurity.permission, projectId: projectSecurity.projectId })
+    await refresquitoRbacService(log).assertPrinicpalAccessToProject({ principal, permission: projectSecurity.permission, projectId: projectSecurity.projectId })
 }
 
 

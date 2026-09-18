@@ -2,7 +2,7 @@ import {
   FlowOperationType,
   FlowVersion,
   FlowVersionState,
-  GitBranchType,
+  RefresquitoGitBranchType,
   Permission,
   PopulatedFlow,
 } from '@activepieces/shared';
@@ -95,7 +95,7 @@ const FlowActionMenu: React.FC<FlowActionMenuProps> = ({
 
   const { embedState } = useEmbedding();
   const isDevelopmentBranch =
-    gitSync && gitSync.branchType === GitBranchType.DEVELOPMENT;
+    gitSync && gitSync.branchType === RefresquitoGitBranchType.DEVELOPMENT;
   const [open, setOpen] = useState(false);
   const allowPush =
     flow.publishedVersionId !== null &&

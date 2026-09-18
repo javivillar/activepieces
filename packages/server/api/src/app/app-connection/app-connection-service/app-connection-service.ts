@@ -42,8 +42,6 @@ import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
 import { ArrayContains, Equal, FindOperator, FindOptionsWhere, ILike, In } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
-import { projectMemberService } from '../../ee/projects/project-members/project-member.service'
-import { containsSecretManagerReference, secretManagersService } from '../../ee/secret-managers/secret-managers.service'
 import { flowService } from '../../flows/flow/flow.service'
 import { encryptUtils } from '../../helper/encryption'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
@@ -55,6 +53,8 @@ import {
     pieceMetadataService,
 } from '../../pieces/metadata/piece-metadata-service'
 import { projectRepo } from '../../project/project-service'
+import { refresquitoProjectMemberService } from '../../refresquito/rbac/project-member.service'
+import { refresquitoContainsSecretManagerReference, refresquitoSecretManagerService } from '../../refresquito/secret-managers/secret-manager.service'
 import { userService } from '../../user/user-service'
 import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
 import {
@@ -90,7 +90,7 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
         }
 
         const validatedConnectionValue = await validateConnectionValue({
-            value: await secretManagersService(log).resolveObject({ value, platformId, projectIds }),
+            value: await refresquitoSecretManagerService(log).resolveObject({ value, platformId, projectIds }),
             pieceName,
             pieceVersion,
             projectId: projectIds[0],
@@ -382,7 +382,7 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
         const { value, ...appConnectionWithoutSensitiveData } = appConnection
         return {
             ...appConnectionWithoutSensitiveData,
-            usingSecretManager: containsSecretManagerReference(value),
+            usingSecretManager: refresquitoContainsSecretManagerReference(value),
         }
     },
 
@@ -419,7 +419,7 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
         if (edition === ApEdition.COMMUNITY) {
             return platformAdmins
         }
-        const projectMembers = await projectMemberService(log).list({
+        const projectMembers = await refresquitoProjectMemberService(log).list({
             platformId,
             projectId,
             cursorRequest: null,

@@ -1,26 +1,26 @@
 import {
-  ConnectSecretManagerRequest,
+  RefresquitoSecretManagerConnectionWithStatus,
   SeekPage,
-  SecretManagerConnectionWithStatus,
+  UpsertRefresquitoSecretManagerConnectionRequest,
 } from '@activepieces/shared';
 
 import { api } from '@/lib/api';
 
 export const secretManagersApi = {
   list(params?: { projectId?: string }) {
-    return api.get<SeekPage<SecretManagerConnectionWithStatus>>(
+    return api.get<SeekPage<RefresquitoSecretManagerConnectionWithStatus>>(
       '/v1/secret-managers',
       params,
     );
   },
-  create(config: ConnectSecretManagerRequest) {
-    return api.post<SecretManagerConnectionWithStatus>(
+  create(config: UpsertRefresquitoSecretManagerConnectionRequest) {
+    return api.post<RefresquitoSecretManagerConnectionWithStatus>(
       '/v1/secret-managers',
       config,
     );
   },
-  update(id: string, config: ConnectSecretManagerRequest) {
-    return api.post<SecretManagerConnectionWithStatus>(
+  update(id: string, config: UpsertRefresquitoSecretManagerConnectionRequest) {
+    return api.post<RefresquitoSecretManagerConnectionWithStatus>(
       `/v1/secret-managers/${id}`,
       config,
     );

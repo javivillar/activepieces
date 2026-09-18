@@ -1,7 +1,7 @@
 import {
   FolderDto,
   PopulatedFlow,
-  ProjectMemberWithUser,
+  RefresquitoProjectMemberWithUser,
   Table,
 } from '@activepieces/shared';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
@@ -24,7 +24,7 @@ type AutomationsTableProps = {
   isLoading: boolean;
   selectedItems: SelectedItemsMap;
   expandedFolders: Set<string>;
-  projectMembers: ProjectMemberWithUser[] | undefined;
+  projectMembers: RefresquitoProjectMemberWithUser[] | undefined;
   folders: FolderDto[];
   selectableCount: number;
   isPinned: (itemId: string) => boolean;

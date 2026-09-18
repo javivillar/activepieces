@@ -92,6 +92,12 @@ import { tagsModule } from './pieces/tags/tags-module'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
 import { projectHooks } from './project/project-hooks'
+import { refresquitoApiKeyModule } from './refresquito/api-keys/api-key.module'
+import { refresquitoGitRepoModule } from './refresquito/git-sync/git-repo.module'
+import { refresquitoGlobalConnectionModule } from './refresquito/global-connections/global-connection.module'
+import { refresquitoProjectMemberModule } from './refresquito/rbac/project-member.module'
+import { refresquitoProjectRoleModule } from './refresquito/rbac/project-role.module'
+import { refresquitoSecretManagerModule } from './refresquito/secret-managers/secret-manager.module'
 import { storeEntryModule } from './store-entry/store-entry.module'
 import { tablesModule } from './tables/tables.module'
 import { templateModule } from './template/template.module'
@@ -335,13 +341,20 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(platformProjectModule)
             await app.register(communityPiecesModule)
             await app.register(auditLogModule)
-            await app.register(projectMemberModule)
-            await app.register(projectRoleModule)
-            await app.register(secretManagersModule)
-            await app.register(apiKeyModule)
-            await app.register(globalConnectionModule)
-            await app.register(projectReleaseModule)
-            await app.register(gitRepoModule)
+            await app.register(refresquitoProjectMemberModule)
+            await app.register(refresquitoProjectRoleModule)
+            await app.register(refresquitoSecretManagerModule)
+            await app.register(refresquitoApiKeyModule)
+            await app.register(refresquitoGlobalConnectionModule)
+            await app.register(refresquitoGitRepoModule)
+            // NOTE: project-release's `/diff` endpoint (promote/reconcile a
+            // release across environments) is deliberately NOT re-implemented
+            // yet -- it depends on a much larger state-reconciliation engine
+            // (flow/table diffing + apply) than plain git-sync push, which
+            // would need its own from-scratch rewrite to avoid ee/. Only the
+            // git-sync push/delete flows above (version-controlling flows to
+            // a repo) are enabled for now. See memory:
+            // activepieces-keycloak-sso-fork.md.
             break
     }
 

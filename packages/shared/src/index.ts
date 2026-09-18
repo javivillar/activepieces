@@ -108,6 +108,16 @@ export * from './lib/ee/scim'
 export * from './lib/ee/embed-subdomain'
 export * from './lib/management/project/project-requests'
 
+// Refresquito fork: own, non-ee, non-Enterprise-licensed reimplementations
+// of features that upstream gates behind app/ee/ + a paid license -- see
+// [[activepieces-keycloak-sso-fork]] memory for why. No file under
+// lib/refresquito/ imports from lib/ee/, and no file under app/refresquito/
+// (server package) imports from app/ee/.
+export * from './lib/refresquito/api-keys'
+export * from './lib/refresquito/secret-managers'
+export * from './lib/refresquito/git-sync'
+export * from './lib/refresquito/rbac'
+
 // formula
 export * from './lib/formula/function-registry'
 export * from './lib/formula/function-implementations'

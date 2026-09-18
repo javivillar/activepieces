@@ -1,10 +1,10 @@
 import {
-  ProjectMemberWithUser,
-  CreateProjectRoleRequestBody,
-  UpdateProjectRoleRequestBody,
+  RefresquitoProjectMemberWithUser,
+  CreateRefresquitoProjectRoleRequestBody,
+  UpdateRefresquitoProjectRoleRequestBody,
   ProjectRole,
   SeekPage,
-  ListProjectMembersForProjectRoleRequestQuery,
+  ListRefresquitoProjectMembersForProjectRoleRequestQuery,
 } from '@activepieces/shared';
 
 import { api } from '@/lib/api';
@@ -16,10 +16,13 @@ export const projectRoleApi = {
   async list() {
     return await api.get<SeekPage<ProjectRole>>(`/v1/project-roles`);
   },
-  async create(requestBody: CreateProjectRoleRequestBody) {
+  async create(requestBody: CreateRefresquitoProjectRoleRequestBody) {
     return await api.post<ProjectRole>('/v1/project-roles', requestBody);
   },
-  async update(id: string, requestBody: UpdateProjectRoleRequestBody) {
+  async update(
+    id: string,
+    requestBody: UpdateRefresquitoProjectRoleRequestBody,
+  ) {
     return await api.post<ProjectRole>(`/v1/project-roles/${id}`, requestBody);
   },
   async delete(id: string) {
@@ -27,9 +30,9 @@ export const projectRoleApi = {
   },
   async listProjectMembers(
     id: string,
-    requestQuery: ListProjectMembersForProjectRoleRequestQuery,
+    requestQuery: ListRefresquitoProjectMembersForProjectRoleRequestQuery,
   ) {
-    return await api.get<SeekPage<ProjectMemberWithUser>>(
+    return await api.get<SeekPage<RefresquitoProjectMemberWithUser>>(
       `/v1/project-roles/${id}/project-members`,
       requestQuery,
     );

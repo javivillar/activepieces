@@ -1,7 +1,6 @@
 import {
-  SECRET_MANAGER_PROVIDERS_METADATA,
-  SecretManagerConnectionScope,
-  SecretManagerConnectionWithStatus,
+  RefresquitoSecretManagerConnectionWithStatus,
+  RefresquitoSecretManagerScope,
 } from '@activepieces/shared';
 import { ColumnDef } from '@tanstack/react-table';
 import { t } from 'i18next';
@@ -30,7 +29,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { PieceIcon } from '@/features/pieces';
 import { secretManagersHooks } from '@/features/secret-managers';
 import { platformHooks } from '@/hooks/platform-hooks';
 
@@ -53,12 +51,12 @@ const SecretManagersPage = () => {
     : undefined;
 
   const columns: ColumnDef<
-    RowDataWithActions<SecretManagerConnectionWithStatus>,
+    RowDataWithActions<RefresquitoSecretManagerConnectionWithStatus>,
     unknown
   >[] = [
     {
       accessorKey: 'name',
-      size: 240,
+      size: 200,
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -66,23 +64,23 @@ const SecretManagersPage = () => {
           icon={KeyRound}
         />
       ),
-      cell: ({ row }) => {
-        const provider = SECRET_MANAGER_PROVIDERS_METADATA.find(
-          (p) => p.id === row.original.providerId,
-        );
-        return (
-          <div className="flex items-center gap-2 w-fit">
-            <PieceIcon
-              size="md"
-              border={true}
-              displayName={provider?.name}
-              logoUrl={provider?.logo}
-              showTooltip={true}
-            />
-            <span>{row.original.name}</span>
-          </div>
-        );
-      },
+      cell: ({ row }) => <span>{row.original.name}</span>,
+    },
+    {
+      accessorKey: 'namespace',
+      size: 160,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Namespace')} />
+      ),
+      cell: ({ row }) => <span>{row.original.namespace}</span>,
+    },
+    {
+      accessorKey: 'secretName',
+      size: 200,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t('Secret Name')} />
+      ),
+      cell: ({ row }) => <span>{row.original.secretName}</span>,
     },
     {
       accessorKey: 'scope',
@@ -96,7 +94,7 @@ const SecretManagersPage = () => {
       ),
       cell: ({ row }) => {
         const connection = row.original;
-        if (connection.scope === SecretManagerConnectionScope.PLATFORM) {
+        if (connection.scope === RefresquitoSecretManagerScope.PLATFORM) {
           return (
             <Badge variant="outline" className="text-xs">
               {t('Platform')}
@@ -111,7 +109,7 @@ const SecretManagersPage = () => {
       },
     },
     {
-      accessorKey: 'connection',
+      accessorKey: 'connected',
       size: 100,
       header: ({ column }) => (
         <DataTableColumnHeader
@@ -121,15 +119,7 @@ const SecretManagersPage = () => {
         />
       ),
       cell: ({ row }) => {
-        const { configured, connected } = row.original.connection;
-        if (!configured) {
-          return (
-            <Badge variant="outline" className="text-xs text-muted-foreground">
-              {t('Not configured')}
-            </Badge>
-          );
-        }
-        if (connected) {
+        if (row.original.connected) {
           return (
             <StatusIconWithText
               icon={Activity}
@@ -226,7 +216,7 @@ export default SecretManagersPage;
 const SecretManagerClearCacheButton = ({
   connection,
 }: {
-  connection: SecretManagerConnectionWithStatus;
+  connection: RefresquitoSecretManagerConnectionWithStatus;
 }) => {
   const { mutate: clearCache, isPending: isClearingCache } =
     secretManagersHooks.useClearCache();

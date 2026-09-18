@@ -1,7 +1,7 @@
 import {
-  GitBranchType,
-  GitPushOperationType,
-  PushEverythingGitRepoRequest,
+  RefresquitoGitBranchType,
+  RefresquitoGitPushOperationType,
+  RefresquitoPushEverythingGitRepoRequest,
   assertNotNullOrUndefined,
 } from '@activepieces/shared';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,19 +50,19 @@ const PushEverythingDialog = (props: PushEverythingDialogProps) => {
     authenticationSession.getProjectId()!,
     platform.plan.environmentsEnabled,
   );
-  const form = useForm<PushEverythingGitRepoRequest>({
+  const form = useForm<RefresquitoPushEverythingGitRepoRequest>({
     defaultValues: {
-      type: GitPushOperationType.PUSH_EVERYTHING,
+      type: RefresquitoGitPushOperationType.PUSH_EVERYTHING,
       commitMessage: '',
     },
-    resolver: zodResolver(PushEverythingGitRepoRequest),
+    resolver: zodResolver(RefresquitoPushEverythingGitRepoRequest),
   });
 
   const { mutate, isPending } = useMutation({
-    mutationFn: async (request: PushEverythingGitRepoRequest) => {
+    mutationFn: async (request: RefresquitoPushEverythingGitRepoRequest) => {
       assertNotNullOrUndefined(gitSync, 'gitSync');
       await gitSyncApi.push(gitSync.id, {
-        type: GitPushOperationType.PUSH_EVERYTHING,
+        type: RefresquitoGitPushOperationType.PUSH_EVERYTHING,
         commitMessage: request.commitMessage,
       });
     },
@@ -74,7 +74,7 @@ const PushEverythingDialog = (props: PushEverythingDialogProps) => {
     },
   });
 
-  if (!gitSync || gitSync.branchType !== GitBranchType.DEVELOPMENT) {
+  if (!gitSync || gitSync.branchType !== RefresquitoGitBranchType.DEVELOPMENT) {
     return null;
   }
   return (

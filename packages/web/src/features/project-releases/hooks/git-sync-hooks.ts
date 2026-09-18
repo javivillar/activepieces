@@ -1,10 +1,10 @@
 import {
-  ConfigureRepoRequest,
-  GitBranchType,
-  GitRepo,
+  RefresquitoConfigureRepoRequest,
+  RefresquitoGitBranchType,
+  RefresquitoGitRepo,
   isNil,
   Permission,
-  PushGitRepoRequest,
+  RefresquitoPushGitRepoRequest,
 } from '@activepieces/shared';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
@@ -41,7 +41,7 @@ export const gitSyncHooks = {
     return (
       userHasPermissionToPushToGit &&
       !isNil(gitSync) &&
-      gitSync.branchType === GitBranchType.DEVELOPMENT
+      gitSync.branchType === RefresquitoGitBranchType.DEVELOPMENT
     );
   },
 };
@@ -54,7 +54,7 @@ export const gitSyncMutations = {
         request,
       }: {
         gitSyncId: string;
-        request: PushGitRepoRequest;
+        request: RefresquitoPushGitRepoRequest;
       }) => {
         await gitSyncApi.push(gitSyncId, request);
       },
@@ -65,11 +65,13 @@ export const gitSyncMutations = {
     onSuccess,
     onError,
   }: {
-    onSuccess: (repo: GitRepo) => void;
+    onSuccess: (repo: RefresquitoGitRepo) => void;
     onError: (error: unknown) => void;
   }) => {
     return useMutation({
-      mutationFn: (request: ConfigureRepoRequest): Promise<GitRepo> => {
+      mutationFn: (
+        request: RefresquitoConfigureRepoRequest,
+      ): Promise<RefresquitoGitRepo> => {
         return gitSyncApi.configure(request);
       },
       onSuccess,

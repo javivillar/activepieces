@@ -1,4 +1,7 @@
-import { ProjectMemberWithUser, Permission } from '@activepieces/shared';
+import {
+  RefresquitoProjectMemberWithUser,
+  Permission,
+} from '@activepieces/shared';
 import { t } from 'i18next';
 import { Trash } from 'lucide-react';
 
@@ -15,7 +18,7 @@ import { projectMembersHooks } from '../hooks/project-members-hooks';
 import { EditRoleDialog } from './edit-role-dialog';
 
 type ProjectMemberCardProps = {
-  member: ProjectMemberWithUser;
+  member: RefresquitoProjectMemberWithUser;
   onUpdate: () => void;
 };
 

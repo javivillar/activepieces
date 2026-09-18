@@ -8,12 +8,12 @@ import { ApId, ApplicationEventName,
     FlowTrigger,
     GetFlowQueryParamsRequest,
     GetFlowTemplateRequestQuery,
-    GitPushOperationType,
     ListFlowsRequest,
     Permission,
     PlatformUsageMetric,
     PopulatedFlow,
     PrincipalType,
+    RefresquitoGitPushOperationType,
     SeekPage,
     SERVICE_KEY_SECURITY_OPENAPI,
     SharedTemplate,
@@ -25,10 +25,10 @@ import { authenticationUtils } from '../../authentication/authentication-utils'
 import { entitiesMustBeOwnedByCurrentProject } from '../../authentication/authorization'
 import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
-import { assertUserHasPermissionToFlow } from '../../ee/authentication/project-role/rbac-middleware'
 import { platformPlanService } from '../../ee/platform/platform-plan/platform-plan.service'
-import { gitRepoService } from '../../ee/projects/project-release/git-sync/git-sync.service'
 import { applicationEvents } from '../../helper/application-events'
+import { refresquitoGitRepoService } from '../../refresquito/git-sync/git-repo.service'
+import { refresquitoAssertUserHasPermissionToFlow } from '../../refresquito/rbac/flow-permission'
 import { userService } from '../../user/user-service'
 import { migrateFlowVersionTemplate } from '../flow-version/migrations'
 import { FlowEntity } from './flow.entity'
@@ -95,7 +95,7 @@ export const flowController: FastifyPluginAsyncZod = async (app) => {
         },
     }, async (request) => {
         const userId = await authenticationUtils(request.log).extractUserIdFromRequest(request)
-        await assertUserHasPermissionToFlow(request.principal, request.projectId, request.body.type, request.log)
+        await refresquitoAssertUserHasPermissionToFlow(request.principal, request.projectId, request.body.type, request.log)
 
         const flow = await flowService(request.log).getOnePopulatedOrThrow({
             id: request.params.id,
@@ -188,13 +188,11 @@ export const flowController: FastifyPluginAsyncZod = async (app) => {
             id: request.params.id,
             projectId: request.projectId,
         })
-        await gitRepoService(request.log).onDeleted({
-            type: GitPushOperationType.DELETE_FLOW,
+        await refresquitoGitRepoService(request.log).onDeleted({
+            type: RefresquitoGitPushOperationType.DELETE_FLOW,
             externalId: flow.externalId,
             userId: request.principal.id,
             projectId: request.projectId,
-            platformId: request.principal.platform.id,
-            log: request.log,
         })
         await flowService(request.log).delete({
             id: request.params.id,

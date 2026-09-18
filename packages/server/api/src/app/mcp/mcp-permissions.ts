@@ -1,21 +1,14 @@
-import { ActivepiecesError, ApEdition, ErrorCode, isNil, McpToolDefinition, Permission } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, McpToolDefinition, Permission } from '@activepieces/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { getPrincipalRoleOrThrow } from '../ee/authentication/project-role/rbac-middleware'
-import { system } from '../helper/system/system'
-
-const EDITION_REQUIRES_RBAC = [ApEdition.CLOUD, ApEdition.ENTERPRISE].includes(system.getEdition())
+import { refresquitoGetPrincipalRoleOrThrow } from '../refresquito/rbac/rbac.service'
 
 export async function resolvePermissionChecker({ userId, projectId, log }: {
     userId: string
     projectId: string
     log: FastifyBaseLogger
 }): Promise<PermissionChecker> {
-    if (!EDITION_REQUIRES_RBAC) {
-        return ALLOW_ALL
-    }
-
     try {
-        const role = await getPrincipalRoleOrThrow(userId, projectId, log)
+        const role = await refresquitoGetPrincipalRoleOrThrow(userId, projectId, log)
         const permissionSet = new Set(role.permissions ?? [])
         return buildChecker((permission, toolTitle) => {
             if (isNil(permission) || permissionSet.has(permission)) {

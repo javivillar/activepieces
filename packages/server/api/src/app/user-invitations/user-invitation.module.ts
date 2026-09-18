@@ -25,9 +25,9 @@ import { userIdentityService } from '../authentication/user-identity/user-identi
 import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { platformMustBeOwnedByCurrentUser, platformMustHaveFeatureEnabled, projectMustBeTeamType } from '../ee/authentication/ee-authorization'
-import { assertRoleHasPermission } from '../ee/authentication/project-role/rbac-middleware'
-import { projectRoleService } from '../ee/projects/project-role/project-role.service'
 import { projectService } from '../project/project-service'
+import { refresquitoProjectRoleService } from '../refresquito/rbac/project-role.service'
+import { refresquitoRbacService } from '../refresquito/rbac/rbac.service'
 import { userService } from '../user/user-service'
 import { userInvitationsService } from './user-invitation.service'
 
@@ -121,7 +121,7 @@ const getProjectRoleAndAssertIfFound = async (platformId: string, request: SendU
     }
     const projectRoleName = request.projectRole
 
-    const projectRole = await projectRoleService.getOneOrThrow({
+    const projectRole = await refresquitoProjectRoleService.getOneOrThrow({
         name: projectRoleName,
         platformId,
     })
@@ -179,7 +179,7 @@ async function assertPrincipalHasPermissionToProject<R extends Principal & { pla
         })
     }
     await platformMustHaveFeatureEnabled((platform) => platform.plan.projectRolesEnabled).call(fastify, request, reply)
-    await assertRoleHasPermission(request.principal, projectId, permission, request.log)
+    await refresquitoRbacService(request.log).assertPrinicpalAccessToProject({ principal: request.principal, projectId, permission })
 }
 
 

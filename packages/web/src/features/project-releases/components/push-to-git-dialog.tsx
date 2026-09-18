@@ -1,8 +1,8 @@
 import {
-  GitPushOperationType,
-  PushGitRepoRequest,
-  PushFlowsGitRepoRequest,
-  PushTablesGitRepoRequest,
+  RefresquitoGitPushOperationType,
+  RefresquitoPushGitRepoRequest,
+  RefresquitoPushFlowsGitRepoRequest,
+  RefresquitoPushTablesGitRepoRequest,
   assertNotNullOrUndefined,
   PopulatedFlow,
   Table,
@@ -58,12 +58,12 @@ const PushToGitDialog = (props: PushToGitDialogProps) => {
     authenticationSession.getProjectId()!,
     platform.plan.environmentsEnabled,
   );
-  const form = useForm<PushGitRepoRequest>({
+  const form = useForm<RefresquitoPushGitRepoRequest>({
     defaultValues: {
       type:
         props.type === 'flow'
-          ? GitPushOperationType.PUSH_FLOW
-          : GitPushOperationType.PUSH_TABLE,
+          ? RefresquitoGitPushOperationType.PUSH_FLOW
+          : RefresquitoGitPushOperationType.PUSH_TABLE,
       commitMessage: '',
       externalFlowIds:
         props.type === 'flow' ? props.flows.map((item) => item.externalId) : [],
@@ -74,25 +74,25 @@ const PushToGitDialog = (props: PushToGitDialogProps) => {
     },
     resolver: zodResolver(
       props.type === 'flow'
-        ? PushFlowsGitRepoRequest
-        : PushTablesGitRepoRequest,
-    ) as Resolver<PushGitRepoRequest>,
+        ? RefresquitoPushFlowsGitRepoRequest
+        : RefresquitoPushTablesGitRepoRequest,
+    ) as Resolver<RefresquitoPushGitRepoRequest>,
   });
 
   const { mutate, isPending } = useMutation({
-    mutationFn: async (request: PushGitRepoRequest) => {
+    mutationFn: async (request: RefresquitoPushGitRepoRequest) => {
       assertNotNullOrUndefined(gitSync, 'gitSync');
       switch (props.type) {
         case 'flow':
           await gitSyncApi.push(gitSync.id, {
-            type: GitPushOperationType.PUSH_FLOW,
+            type: RefresquitoGitPushOperationType.PUSH_FLOW,
             commitMessage: request.commitMessage,
             externalFlowIds: props.flows.map((item) => item.externalId),
           });
           break;
         case 'table':
           await gitSyncApi.push(gitSync.id, {
-            type: GitPushOperationType.PUSH_TABLE,
+            type: RefresquitoGitPushOperationType.PUSH_TABLE,
             commitMessage: request.commitMessage,
             externalTableIds: props.tables.map((item) => item.externalId),
           });

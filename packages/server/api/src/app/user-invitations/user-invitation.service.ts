@@ -5,14 +5,14 @@ import { userIdentityService } from '../authentication/user-identity/user-identi
 import { repoFactory } from '../core/db/repo-factory'
 import { smtpEmailSender } from '../ee/helper/email/email-sender/smtp-email-sender'
 import { emailService } from '../ee/helper/email/email-service'
-import { projectMemberService } from '../ee/projects/project-members/project-member.service'
-import { projectRoleService } from '../ee/projects/project-role/project-role.service'
 import { domainHelper } from '../helper/domain-helper'
 import { JwtAudience, jwtUtils } from '../helper/jwt-utils'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
 import { platformService } from '../platform/platform.service'
 import { projectService } from '../project/project-service'
+import { refresquitoProjectMemberService } from '../refresquito/rbac/project-member.service'
+import { refresquitoProjectRoleService } from '../refresquito/rbac/project-role.service'
 import { userService } from '../user/user-service'
 import { UserInvitationEntity } from './user-invitation.entity'
 
@@ -76,7 +76,7 @@ export const userInvitationsService = (log: FastifyBaseLogger) => ({
                     const platform = await platformService(log).getOneWithPlanOrThrow(invitation.platformId)
                     assertEqual(platform.plan.projectRolesEnabled, true, 'Project roles are not enabled', 'PROJECT_ROLES_NOT_ENABLED')
 
-                    const projectRole = await projectRoleService.getOneOrThrowById({
+                    const projectRole = await refresquitoProjectRoleService.getOneOrThrowById({
                         id: projectRoleId,
                     })
 
@@ -85,7 +85,7 @@ export const userInvitationsService = (log: FastifyBaseLogger) => ({
                         isSoftDeleted: false,
                     })
                     if (!isNil(project)) {
-                        await projectMemberService(log).upsert({
+                        await refresquitoProjectMemberService(log).upsert({
                             projectId,
                             userId: user.id,
                             projectRoleName: projectRole.name,
@@ -160,7 +160,7 @@ export const userInvitationsService = (log: FastifyBaseLogger) => ({
         const { data, cursor } = await paginator.paginate(queryBuilder)
         const enrichedData = await Promise.all(data.map(async (invitation) => {
             return {
-                projectRole: !isNil(invitation.projectRoleId) ? await projectRoleService.getOneOrThrowById({
+                projectRole: !isNil(invitation.projectRoleId) ? await refresquitoProjectRoleService.getOneOrThrowById({
                     id: invitation.projectRoleId,
                 }) : null,
                 ...invitation,

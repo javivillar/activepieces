@@ -1,5 +1,5 @@
 import {
-  ProjectMemberWithUser,
+  RefresquitoProjectMemberWithUser,
   ApFlagId,
   assertNotNullOrUndefined,
 } from '@activepieces/shared';
@@ -15,7 +15,7 @@ export const projectMembersHooks = {
   useProjectMembers: () => {
     const { data } = flagsHooks.useFlag<boolean>(ApFlagId.SHOW_PROJECT_MEMBERS);
     const { platform } = platformHooks.useCurrentPlatform();
-    const query = useQuery<ProjectMemberWithUser[]>({
+    const query = useQuery<RefresquitoProjectMemberWithUser[]>({
       queryKey: ['project-members', authenticationSession.getProjectId()],
       queryFn: async () => {
         const projectId = authenticationSession.getProjectId();

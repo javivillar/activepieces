@@ -1,6 +1,6 @@
 import {
-  ConnectSecretManagerRequest,
-  SecretManagerConnectionWithStatus,
+  RefresquitoSecretManagerConnectionWithStatus,
+  UpsertRefresquitoSecretManagerConnectionRequest,
 } from '@activepieces/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { t } from 'i18next';
@@ -25,14 +25,12 @@ export const secretManagersHooks = {
     const projectId = listForPlatform
       ? undefined
       : authenticationSession.getProjectId()!;
-    return useQuery<SecretManagerConnectionWithStatus[]>({
+    return useQuery<RefresquitoSecretManagerConnectionWithStatus[]>({
       queryKey: ['secret-managers', projectId],
       queryFn: async () => {
         const result = await secretManagersApi.list({ projectId });
         if (connectedOnly) {
-          return result.data.filter(
-            (connection) => connection.connection?.connected,
-          );
+          return result.data.filter((connection) => connection.connected);
         }
         return result.data;
       },
@@ -51,9 +49,9 @@ export const secretManagersHooks = {
   }) => {
     const queryClient = useQueryClient();
     return useMutation<
-      SecretManagerConnectionWithStatus,
+      RefresquitoSecretManagerConnectionWithStatus,
       Error,
-      ConnectSecretManagerRequest
+      UpsertRefresquitoSecretManagerConnectionRequest
     >({
       mutationFn: secretManagersApi.create,
       onSuccess: () => {
@@ -73,9 +71,9 @@ export const secretManagersHooks = {
   }) => {
     const queryClient = useQueryClient();
     return useMutation<
-      SecretManagerConnectionWithStatus,
+      RefresquitoSecretManagerConnectionWithStatus,
       Error,
-      { id: string; config: ConnectSecretManagerRequest }
+      { id: string; config: UpsertRefresquitoSecretManagerConnectionRequest }
     >({
       mutationFn: ({ id, config }) => secretManagersApi.update(id, config),
       onSuccess: () => {

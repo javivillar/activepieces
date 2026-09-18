@@ -1,5 +1,5 @@
 import {
-  ProjectMemberWithUser,
+  RefresquitoProjectMemberWithUser,
   Permission,
   UserInvitation,
   UserWithMetaInformation,
@@ -38,7 +38,7 @@ export type MemberRowData =
   | {
       id: string;
       type: 'member';
-      data: ProjectMemberWithUser;
+      data: RefresquitoProjectMemberWithUser;
     }
   | {
       id: string;

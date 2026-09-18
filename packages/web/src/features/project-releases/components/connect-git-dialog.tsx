@@ -1,7 +1,7 @@
 import {
-  ConfigureRepoRequest,
-  GitBranchType,
-  GitRepo,
+  RefresquitoConfigureRepoRequest,
+  RefresquitoGitBranchType,
+  RefresquitoGitRepo,
   ApErrorParams,
   ErrorCode,
 } from '@activepieces/shared';
@@ -50,16 +50,16 @@ const ConnectGitDialog = ({ open, setOpen, showButton }: ConnectGitProps) => {
   const projectId = authenticationSession.getProjectId()!;
   const { platform } = platformHooks.useCurrentPlatform();
 
-  const form = useForm<ConfigureRepoRequest>({
+  const form = useForm<RefresquitoConfigureRepoRequest>({
     defaultValues: {
       remoteUrl: '',
       projectId,
-      branchType: GitBranchType.DEVELOPMENT,
+      branchType: RefresquitoGitBranchType.DEVELOPMENT,
       sshPrivateKey: '',
       slug: '',
       branch: '',
     },
-    resolver: zodResolver(ConfigureRepoRequest),
+    resolver: zodResolver(RefresquitoConfigureRepoRequest),
   });
 
   const { refetch } = gitSyncHooks.useGitSync(
@@ -68,7 +68,9 @@ const ConnectGitDialog = ({ open, setOpen, showButton }: ConnectGitProps) => {
   );
 
   const { mutate, isPending } = useMutation({
-    mutationFn: (request: ConfigureRepoRequest): Promise<GitRepo> => {
+    mutationFn: (
+      request: RefresquitoConfigureRepoRequest,
+    ): Promise<RefresquitoGitRepo> => {
       return gitSyncApi.configure(request);
     },
     onSuccess: () => {

@@ -1,6 +1,6 @@
 import {
   CreateOtpRequestBody,
-  GetCurrentProjectMemberRoleQuery,
+  GetCurrentRefresquitoProjectMemberRoleQuery,
   ResetPasswordRequestBody,
   VerifyEmailRequestBody,
   AuthenticationResponse,
@@ -48,7 +48,7 @@ export const authenticationApi = {
       request,
     );
   },
-  getCurrentProjectRole(query: GetCurrentProjectMemberRoleQuery) {
+  getCurrentProjectRole(query: GetCurrentRefresquitoProjectMemberRoleQuery) {
     return api.get<ProjectRole | null>('/v1/project-members/role', query);
   },
   claimThirdPartyRequest(request: ClaimTokenRequest) {

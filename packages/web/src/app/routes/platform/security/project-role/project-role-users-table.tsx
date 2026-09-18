@@ -1,4 +1,7 @@
-import { ProjectMemberWithUser, ProjectRole } from '@activepieces/shared';
+import {
+  RefresquitoProjectMemberWithUser,
+  ProjectRole,
+} from '@activepieces/shared';
 import { t } from 'i18next';
 import { Loader2, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -70,7 +73,7 @@ export const ProjectRoleUsersSheet = ({
   );
 };
 
-function renderUserItem(member: ProjectMemberWithUser) {
+function renderUserItem(member: RefresquitoProjectMemberWithUser) {
   const { user, project } = member;
   const fullName = `${user.firstName} ${user.lastName}`.trim();
 

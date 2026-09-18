@@ -26,12 +26,12 @@ import { In, IsNull } from 'typeorm'
 import { userIdentityRepository, userIdentityService } from '../authentication/user-identity/user-identity-service'
 import { repoFactory } from '../core/db/repo-factory'
 import { platformProjectService } from '../ee/projects/platform-project-service'
-import { projectMemberRepo } from '../ee/projects/project-role/project-role.service'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
 import { system } from '../helper/system/system'
 import { platformService } from '../platform/platform.service'
 import { projectService } from '../project/project-service'
+import { refresquitoProjectMemberRepo } from '../refresquito/rbac/project-role.service'
 import { UserEntity, UserSchema } from './user-entity'
 
 
@@ -276,7 +276,7 @@ async function getUsersForProject(platformId: PlatformId, projectId: string): Pr
     if (edition === ApEdition.COMMUNITY) {
         return platformAdmins
     }
-    const projectMembers = await projectMemberRepo().find({ where: { projectId, platformId } }).then((members) => members.map((member) => member.userId))
+    const projectMembers = await refresquitoProjectMemberRepo().find({ where: { projectId, platformId } }).then((members) => members.map((member) => member.userId))
     return [...platformAdmins, ...projectMembers]
 }
 

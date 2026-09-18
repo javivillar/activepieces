@@ -3,13 +3,13 @@ import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
-import { projectMemberService } from '../../ee/projects/project-members/project-member.service'
 import { applicationEvents } from '../../helper/application-events'
 import { networkUtils } from '../../helper/network-utils'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { platformService } from '../../platform/platform.service'
 import { platformUtils } from '../../platform/platform.utils'
+import { refresquitoProjectMemberService } from '../../refresquito/rbac/project-member.service'
 import { userService } from '../../user/user-service'
 import { authenticationService } from '../authentication.service'
 import { keycloakAuthnProvider } from './keycloak-authn-provider'
@@ -134,7 +134,7 @@ async function syncSharedProjectRoleFromGroups(log: FastifyBaseLogger, response:
     }
     const desiredRoleName = resolveDesiredSharedProjectRole(groups)
 
-    const existingRole = await projectMemberService(log).getRole({ userId: response.id, projectId: sharedProjectId })
+    const existingRole = await refresquitoProjectMemberService(log).getRole({ userId: response.id, projectId: sharedProjectId })
     if (isNil(desiredRoleName)) {
         if (!isNil(existingRole)) {
             await removeSharedProjectMembership(log, platform.id, sharedProjectId, response.id)
@@ -144,7 +144,7 @@ async function syncSharedProjectRoleFromGroups(log: FastifyBaseLogger, response:
     if (existingRole?.name === desiredRoleName) {
         return
     }
-    await projectMemberService(log).upsert({
+    await refresquitoProjectMemberService(log).upsert({
         userId: response.id,
         projectId: sharedProjectId,
         projectRoleName: desiredRoleName,
@@ -162,7 +162,7 @@ function resolveDesiredSharedProjectRole(groups: string[]): DefaultProjectRole |
 }
 
 async function removeSharedProjectMembership(log: FastifyBaseLogger, platformId: string, projectId: string, userId: string): Promise<void> {
-    const { data } = await projectMemberService(log).list({
+    const { data } = await refresquitoProjectMemberService(log).list({
         platformId,
         projectId,
         cursorRequest: null,
@@ -170,7 +170,7 @@ async function removeSharedProjectMembership(log: FastifyBaseLogger, platformId:
     })
     const member = data.find((m) => m.userId === userId)
     if (!isNil(member)) {
-        await projectMemberService(log).delete(projectId, member.id)
+        await refresquitoProjectMemberService(log).delete(projectId, member.id)
     }
 }
 
