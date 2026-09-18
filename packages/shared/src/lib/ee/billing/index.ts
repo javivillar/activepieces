@@ -110,7 +110,11 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     aiProvidersEnabled: true,
     chatEnabled: false,
     dataManipulationEnabled: false,
-    globalConnectionsEnabled: false,
+    // Unlocks /v1/global-connections -- pure CRUD reusing the existing
+    // appConnectionService, no license check. Lets a platform admin define
+    // a connection once and share it across every project instead of
+    // duplicating credentials per project.
+    globalConnectionsEnabled: true,
     // Refresquito fork: custom project roles are pure CRUD + a generic
     // permission-array check (rbacService.assertPrinicpalAccessToProject
     // reads ProjectRole.permissions the same way for default and custom
@@ -118,7 +122,12 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     // needed, just unlocking the already-built service/module/frontend.
     customRolesEnabled: true,
     includedAiCredits: 0,
-    environmentsEnabled: false,
+    // Unlocks /v1/project-releases + /v1/git-repos (project-release.module
+    // + git-sync.module, both gated on this one flag) -- dev/staging/prod
+    // promotion and per-project Git sync for flows (remote URL/branch/SSH
+    // key entered via the UI, same as the secret-manager connection
+    // pattern -- no chart-level config). Pure CRUD, no license check.
+    environmentsEnabled: true,
     eventStreamingEnabled: false,
     analyticsEnabled: true,
     showPoweredBy: false,
@@ -144,7 +153,11 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     // both act on the same project_member/project_role tables, this just
     // also lets a platform admin manage it by hand via the UI.
     projectRolesEnabled: true,
-    apiKeysEnabled: false,
+    // Unlocks /v1/api-keys (create/list/delete). The actual authentication
+    // path (Bearer sk-... recognized in core/security/v2/authn/
+    // authenticate.ts, a CE file) is already edition-agnostic and always
+    // active -- this flag only gates the CRUD UI/endpoints to manage keys.
+    apiKeysEnabled: true,
     ssoEnabled: false,
     // Unlocks /v1/secret-managers. Same generic CRUD + provider-plugin
     // mechanism as everything else -- no license check anywhere in
