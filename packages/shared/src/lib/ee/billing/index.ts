@@ -146,7 +146,15 @@ export const OPEN_SOURCE_PLAN: PlatformPlanWithOnlyLimits = {
     projectRolesEnabled: true,
     apiKeysEnabled: false,
     ssoEnabled: false,
-    secretManagersEnabled: false,
+    // Unlocks /v1/secret-managers. Same generic CRUD + provider-plugin
+    // mechanism as everything else -- no license check anywhere in
+    // secretManagersService or the providers. Added a 5th provider
+    // (KUBERNETES, secret-manager-providers/kubernetes-provider.ts) for
+    // this self-hosted deployment: reads from a dedicated Secret in the
+    // refresquito-secrets namespace via the pod's own ServiceAccount,
+    // since no external vault (AWS/Vault/CyberArk/1Password) is available
+    // here.
+    secretManagersEnabled: true,
     scimEnabled: false,
     stripeCustomerId: undefined,
     stripeSubscriptionId: undefined,

@@ -6,6 +6,7 @@ export enum SecretManagerProviderId {
     AWS = 'aws',
     CYBERARK = 'cyberark-conjur',
     ONEPASSWORD = 'onepassword',
+    KUBERNETES = 'kubernetes',
 }
 
 export enum SecretManagerConnectionScope {
@@ -49,6 +50,21 @@ export const OnePasswordProviderConfigSchema = z.object({
 })
 export type OnePasswordProviderConfig = z.infer<typeof OnePasswordProviderConfigSchema>
 
+
+
+// Refresquito fork: reads keys from ONE named Secret in the cluster's own
+// Kubernetes API instead of an external vault -- no credentials to enter,
+// auth is the activepieces pod's own ServiceAccount token (in-cluster
+// config). secretName is fixed at connection time (not per-reference)
+// because Kubernetes RBAC's `list` verb cannot be scoped by
+// resourceNames -- only `get` can, so the ServiceAccount is granted `get`
+// on exactly this one Secret object and nothing else in the namespace.
+export const KubernetesProviderConfigSchema = z.object({
+    namespace: z.string().min(1, formErrors.required),
+    secretName: z.string().min(1, formErrors.required),
+})
+export type KubernetesProviderConfig = z.infer<typeof KubernetesProviderConfigSchema>
+
 const SecretManagerConnectionScopeFields = {
     name: z.string().min(1, formErrors.required),
     scope: z.enum(SecretManagerConnectionScope),
@@ -77,6 +93,11 @@ export const ConnectSecretManagerRequestSchema = z
             providerId: z.literal(SecretManagerProviderId.ONEPASSWORD),
             config: OnePasswordProviderConfigSchema,
         }),
+        z.object({
+            ...SecretManagerConnectionScopeFields,
+            providerId: z.literal(SecretManagerProviderId.KUBERNETES),
+            config: KubernetesProviderConfigSchema,
+        }),
     ])
     .superRefine((data, ctx) => {
         if (data.scope === SecretManagerConnectionScope.PROJECT) {
@@ -103,3 +124,4 @@ export type SecretManagerProviderConfig =
   | AWSProviderConfig
   | CyberarkConjurProviderConfig
   | OnePasswordProviderConfig
+  | KubernetesProviderConfig

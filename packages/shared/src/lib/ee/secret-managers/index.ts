@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { BaseModelSchema, Nullable } from '../../core/common'
-import { AWSProviderConfigSchema, CyberarkConjurProviderConfigSchema, HashicorpProviderConfigSchema, OnePasswordProviderConfigSchema, SecretManagerConnectionScope, SecretManagerProviderId } from './dto'
+import { AWSProviderConfigSchema, CyberarkConjurProviderConfigSchema, HashicorpProviderConfigSchema, KubernetesProviderConfigSchema, OnePasswordProviderConfigSchema, SecretManagerConnectionScope, SecretManagerProviderId } from './dto'
 
 export * from './dto'
 
@@ -9,6 +9,7 @@ export const SecretManagerConfigSchema = z.union([
     AWSProviderConfigSchema,
     CyberarkConjurProviderConfigSchema,
     OnePasswordProviderConfigSchema,
+    KubernetesProviderConfigSchema,
 ])
 export type SecretManagerConfig = z.infer<typeof SecretManagerConfigSchema>
 
@@ -104,6 +105,12 @@ export const SecretManagerProviderMetaDataSchema = z.discriminatedUnion('id', [
         ...SecretManagerProviderMetaDataBaseSchema.shape,
         id: z.literal(SecretManagerProviderId.ONEPASSWORD),
         fields: z.record(z.enum(Object.keys(OnePasswordProviderConfigSchema.shape) as [string, ...string[]]), SecretManagerFieldSchema),
+        secretParams: z.array(SecretManagerSecretParamSchema),
+    }),
+    z.object({
+        ...SecretManagerProviderMetaDataBaseSchema.shape,
+        id: z.literal(SecretManagerProviderId.KUBERNETES),
+        fields: z.record(z.enum(Object.keys(KubernetesProviderConfigSchema.shape) as [string, ...string[]]), SecretManagerFieldSchema),
         secretParams: z.array(SecretManagerSecretParamSchema),
     }),
 ])
@@ -228,6 +235,31 @@ export const SECRET_MANAGER_PROVIDERS_METADATA: SecretManagerProviderMetaData[] 
                 name: 'path',
                 displayName: 'Secret Reference',
                 placeholder: 'op://vault/item/field',
+                type: 'text',
+            },
+        ],
+    },
+    {
+        id: SecretManagerProviderId.KUBERNETES,
+        name: 'Kubernetes Secrets',
+        logo: 'https://cdn.simpleicons.org/kubernetes',
+        fields: {
+            namespace: {
+                displayName: 'Namespace',
+                placeholder: 'refresquito-secrets',
+                type: 'text',
+            },
+            secretName: {
+                displayName: 'Secret Name',
+                placeholder: 'activepieces-flow-secrets',
+                type: 'text',
+            },
+        },
+        secretParams: [
+            {
+                name: 'path',
+                displayName: 'Key',
+                placeholder: 'my-api-key',
                 type: 'text',
             },
         ],

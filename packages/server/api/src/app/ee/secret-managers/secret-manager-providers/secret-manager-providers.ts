@@ -3,6 +3,7 @@ import { FastifyBaseLogger } from 'fastify'
 import { awsProvider } from './aws-provider'
 import { cyberarkConjurProvider } from './cyberark-conjur-provider'
 import { hashicorpProvider } from './hashicorp-provider'
+import { kubernetesProvider } from './kubernetes-provider'
 import { onePasswordProvider } from './onepassword-provider'
 
 function extractErrorMessage(error: unknown): string {
@@ -61,6 +62,7 @@ const secretManagerProvidersMap = (log: FastifyBaseLogger): SecretManagerProvide
         [SecretManagerProviderId.AWS]: awsProvider(log),
         [SecretManagerProviderId.CYBERARK]: cyberarkConjurProvider(log),
         [SecretManagerProviderId.ONEPASSWORD]: onePasswordProvider(log),
+        [SecretManagerProviderId.KUBERNETES]: kubernetesProvider(log),
     }
 }
 

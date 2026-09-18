@@ -337,6 +337,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(auditLogModule)
             await app.register(projectMemberModule)
             await app.register(projectRoleModule)
+            await app.register(secretManagersModule)
             break
     }
 
