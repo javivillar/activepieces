@@ -21,8 +21,11 @@ const refresquitoSecretManagerController: FastifyPluginAsyncZod = async (app) =>
     })
 
     app.post('/', CreateRequest, async (request, reply) => {
-        const result = await service.create(request.principal.platform.id, request.body)
-        return reply.status(StatusCodes.CREATED).send(result)
+        const connection = await service.create({
+            platformId: request.principal.platform.id,
+            request: request.body,
+        })
+        return reply.status(StatusCodes.CREATED).send(connection)
     })
 
     app.post('/:id', UpdateRequest, async (request) => {

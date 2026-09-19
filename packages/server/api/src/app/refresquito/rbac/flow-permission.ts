@@ -2,50 +2,34 @@ import { FlowOperationType, Permission, Principal, ProjectId } from '@activepiec
 import { FastifyBaseLogger } from 'fastify'
 import { refresquitoRbacService } from './rbac.service'
 
-// Refresquito fork: own replacement for the finer-grained per-flow-
-// operation permission check (upstream:
-// ee/authentication/project-role/rbac-middleware.ts's
-// assertUserHasPermissionToFlow). Deliberately always active here (no
-// edition gate) -- fully redundant with, not stricter than, the
-// route-level WRITE_FLOW/UPDATE_FLOW_STATUS check already enforced by
-// authorize.ts on the same endpoints, so enabling it changes no real
-// behavior for any user.
+// Refresquito fork: secondary, flow-operation-specific permission check.
+// Called by flow.controller.ts on every "apply operation to a flow"
+// request, independently of (and redundantly with) the route-level project
+// permission check authorize.ts already runs. Unconditionally active --
+// no edition/feature-flag gate, on purpose.
+//
+// Only status-changing operations require the narrower UPDATE_FLOW_STATUS
+// permission; every other flow mutation requires WRITE_FLOW. Read-only
+// access to a flow never reaches this function at all, since it's only
+// wired into the mutating "apply operation" endpoint.
+const STATUS_CHANGING_FLOW_OPERATIONS: ReadonlySet<FlowOperationType> = new Set([
+    FlowOperationType.CHANGE_STATUS,
+    FlowOperationType.LOCK_AND_PUBLISH,
+])
+
 export async function refresquitoAssertUserHasPermissionToFlow(
     principal: Principal,
     projectId: ProjectId,
     operationType: FlowOperationType,
     log: FastifyBaseLogger,
 ): Promise<void> {
-    switch (operationType) {
-        case FlowOperationType.LOCK_AND_PUBLISH:
-        case FlowOperationType.CHANGE_STATUS:
-            await refresquitoRbacService(log).assertPrinicpalAccessToProject({ principal, permission: Permission.UPDATE_FLOW_STATUS, projectId })
-            break
-        case FlowOperationType.UPDATE_MINUTES_SAVED:
-        case FlowOperationType.SAVE_SAMPLE_DATA:
-        case FlowOperationType.ADD_ACTION:
-        case FlowOperationType.UPDATE_ACTION:
-        case FlowOperationType.DELETE_ACTION:
-        case FlowOperationType.LOCK_FLOW:
-        case FlowOperationType.CHANGE_FOLDER:
-        case FlowOperationType.CHANGE_NAME:
-        case FlowOperationType.MOVE_ACTION:
-        case FlowOperationType.IMPORT_FLOW:
-        case FlowOperationType.UPDATE_TRIGGER:
-        case FlowOperationType.DUPLICATE_ACTION:
-        case FlowOperationType.USE_AS_DRAFT:
-        case FlowOperationType.ADD_BRANCH:
-        case FlowOperationType.DELETE_BRANCH:
-        case FlowOperationType.DUPLICATE_BRANCH:
-        case FlowOperationType.UPDATE_METADATA:
-        case FlowOperationType.UPDATE_OWNER:
-        case FlowOperationType.SET_SKIP_ACTION:
-        case FlowOperationType.MOVE_BRANCH:
-        case FlowOperationType.ADD_NOTE:
-        case FlowOperationType.UPDATE_NOTE:
-        case FlowOperationType.DELETE_NOTE:
-        case FlowOperationType.UPDATE_SAMPLE_DATA_INFO:
-            await refresquitoRbacService(log).assertPrinicpalAccessToProject({ principal, permission: Permission.WRITE_FLOW, projectId })
-            break
-    }
+    const requiredPermission = STATUS_CHANGING_FLOW_OPERATIONS.has(operationType)
+        ? Permission.UPDATE_FLOW_STATUS
+        : Permission.WRITE_FLOW
+
+    await refresquitoRbacService(log).assertPrinicpalAccessToProject({
+        principal,
+        permission: requiredPermission,
+        projectId,
+    })
 }

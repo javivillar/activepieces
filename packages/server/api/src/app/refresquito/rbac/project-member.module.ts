@@ -17,7 +17,7 @@ import { securityAccess } from '../../core/security/authorization/fastify-securi
 import { RefresquitoProjectMemberEntity } from './project-member.entity'
 import { refresquitoProjectMemberService } from './project-member.service'
 
-const DEFAULT_LIMIT_SIZE = 10
+const DEFAULT_PAGE_SIZE = 10
 
 export const refresquitoProjectMemberModule: FastifyPluginAsyncZod = async (app) => {
     app.addHook('preSerialization', entitiesMustBeOwnedByCurrentProject)
@@ -32,28 +32,28 @@ const refresquitoProjectMemberController: FastifyPluginAsyncZod = async (app) =>
         })
     })
 
-    app.get('/', ListProjectMembersRequestQueryOptions, async (request) => {
+    app.get('/', ListProjectMembersRequest, async (request) => {
         return refresquitoProjectMemberService(request.log).list({
             platformId: request.principal.platform.id,
             projectId: request.projectId,
+            projectRoleId: request.query.projectRoleId,
             cursorRequest: request.query.cursor ?? null,
-            limit: request.query.limit ?? DEFAULT_LIMIT_SIZE,
-            projectRoleId: request.query.projectRoleId ?? undefined,
+            limit: request.query.limit ?? DEFAULT_PAGE_SIZE,
         })
     })
 
-    app.post('/:id', UpdateProjectMemberRoleRequest, async (req) => {
-        return refresquitoProjectMemberService(req.log).update({
-            id: req.params.id,
-            role: req.body.role,
-            projectId: req.projectId,
-            platformId: req.principal.platform.id,
+    app.post('/:id', UpdateProjectMemberRoleRequest, async (request) => {
+        return refresquitoProjectMemberService(request.log).update({
+            id: request.params.id,
+            role: request.body.role,
+            projectId: request.projectId,
+            platformId: request.principal.platform.id,
         })
     })
 
     app.delete('/:id', DeleteProjectMemberRequest, async (request, reply) => {
         await refresquitoProjectMemberService(request.log).delete(request.projectId, request.params.id)
-        await reply.status(StatusCodes.NO_CONTENT).send()
+        return reply.code(StatusCodes.NO_CONTENT).send(null)
     })
 }
 
@@ -68,7 +68,7 @@ const GetCurrentProjectMemberRoleRequest = {
     },
 }
 
-const ListProjectMembersRequestQueryOptions = {
+const ListProjectMembersRequest = {
     config: {
         security: securityAccess.project([PrincipalType.USER, PrincipalType.SERVICE], Permission.READ_PROJECT_MEMBER, {
             type: ProjectResourceType.QUERY,
@@ -104,5 +104,6 @@ const DeleteProjectMemberRequest = {
     },
     schema: {
         params: z.object({ id: z.string() }),
+        response: { [StatusCodes.NO_CONTENT]: z.null() },
     },
 }

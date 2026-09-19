@@ -1,6 +1,6 @@
 import {
-  SECRET_MANAGER_PROVIDERS_METADATA,
-  SecretManagerFieldsSeparator,
+  refresquitoSecretManagerReferenceUtils,
+  RefresquitoSecretManagerConnectionWithStatus,
 } from '@activepieces/shared';
 import { t } from 'i18next';
 import { KeyRound } from 'lucide-react';
@@ -66,6 +66,16 @@ const SecretManagerToggleButton = React.memo(
 
 SecretManagerToggleButton.displayName = 'SecretManagerToggleButton';
 
+const buildSecretValue = (
+  connectionId: string | undefined,
+  key: string,
+): string => {
+  if (!connectionId || !key) {
+    return '';
+  }
+  return refresquitoSecretManagerReferenceUtils.build({ connectionId, key });
+};
+
 const SecretInput = React.forwardRef<HTMLInputElement, SecretInputProps>(
   ({ className, value, onChange, ...restProps }, ref) => {
     const { onBlur, name, disabled, ...otherProps } = restProps;
@@ -76,44 +86,24 @@ const SecretInput = React.forwardRef<HTMLInputElement, SecretInputProps>(
         connectedOnly: true,
       });
 
-    const getSecretParamsForConnection = (connectionId: string | undefined) => {
-      if (!connectionId || !connections) return [];
-      const connection = connections.find((c) => c.id === connectionId);
-      if (!connection) return [];
-      const provider = SECRET_MANAGER_PROVIDERS_METADATA.find(
-        (p) => p.id === connection.providerId,
-      );
-      return provider?.secretParams ?? [];
-    };
+    const existingReference = value
+      ? refresquitoSecretManagerReferenceUtils.parse(value)
+      : null;
 
-    const [showSecretManagerInput, setShowSecretInput] = useState(false);
-
+    const [showSecretManagerInput, setShowSecretInput] = useState(
+      !!existingReference,
+    );
     const [selectedConnectionId, setSelectedConnectionId] = useState<
       string | undefined
-    >(undefined);
-
-    const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-
-    const buildSecretValue = (
-      connectionId: string | undefined,
-      fieldValues: Record<string, string>,
-    ): string => {
-      const values = getSecretParamsForConnection(connectionId).map(
-        (param) => fieldValues[param.name] || '',
-      );
-      const parts = [connectionId, ...values].join(
-        SecretManagerFieldsSeparator,
-      );
-      return `{{${parts}}}`;
-    };
+    >(existingReference?.connectionId);
+    const [secretKey, setSecretKey] = useState(existingReference?.key ?? '');
 
     const toggleSecretManager = () => {
       const newShowSecretInput = !showSecretManagerInput;
       setShowSecretInput(newShowSecretInput);
 
       if (newShowSecretInput) {
-        const newValue = buildSecretValue(selectedConnectionId, fieldValues);
-        onChange?.(newValue);
+        onChange?.(buildSecretValue(selectedConnectionId, secretKey));
       } else {
         onChange?.('');
       }
@@ -121,20 +111,13 @@ const SecretInput = React.forwardRef<HTMLInputElement, SecretInputProps>(
 
     const handleConnectionChange = (newConnectionId: string) => {
       setSelectedConnectionId(newConnectionId);
-      const newFieldValues: Record<string, string> = {};
-      getSecretParamsForConnection(newConnectionId).forEach((param) => {
-        newFieldValues[param.name] = '';
-      });
-      setFieldValues(newFieldValues);
-      const newValue = buildSecretValue(newConnectionId, newFieldValues);
-      onChange?.(newValue);
+      setSecretKey('');
+      onChange?.(buildSecretValue(newConnectionId, ''));
     };
 
-    const handleFieldChange = (fieldKey: string, fieldValue: string) => {
-      const newFieldValues = { ...fieldValues, [fieldKey]: fieldValue };
-      setFieldValues(newFieldValues);
-      const newValue = buildSecretValue(selectedConnectionId, newFieldValues);
-      onChange?.(newValue);
+    const handleKeyChange = (newKey: string) => {
+      setSecretKey(newKey);
+      onChange?.(buildSecretValue(selectedConnectionId, newKey));
     };
 
     const handleNormalInputChange = (
@@ -143,21 +126,10 @@ const SecretInput = React.forwardRef<HTMLInputElement, SecretInputProps>(
       onChange?.(e.target.value);
     };
 
-    const currentFields =
-      getSecretParamsForConnection(selectedConnectionId) || [];
-
-    const getProviderForConnection = (connectionId: string | undefined) => {
-      if (!connectionId || !connections) return undefined;
-      const connection = connections.find((c) => c.id === connectionId);
-      return SECRET_MANAGER_PROVIDERS_METADATA.find(
-        (p) => p.id === connection?.providerId,
-      );
-    };
-
     const selectedConnection = connections?.find(
-      (c) => c.id === selectedConnectionId,
+      (connection: RefresquitoSecretManagerConnectionWithStatus) =>
+        connection.id === selectedConnectionId,
     );
-    const selectedProvider = getProviderForConnection(selectedConnectionId);
 
     if (showSecretManagerInput) {
       return (
@@ -173,62 +145,26 @@ const SecretInput = React.forwardRef<HTMLInputElement, SecretInputProps>(
             >
               <SelectTrigger className="w-64">
                 {selectedConnection ? (
-                  <div className="flex items-center gap-2 min-w-0">
-                    {selectedProvider?.logo && (
-                      <img
-                        src={selectedProvider.logo}
-                        alt={selectedProvider.name}
-                        className="size-4 shrink-0 object-contain"
-                      />
-                    )}
-                    <span className="truncate">{selectedConnection.name}</span>
-                  </div>
+                  <span className="truncate">{selectedConnection.name}</span>
                 ) : (
                   <SelectValue placeholder={t('Select connection')} />
                 )}
               </SelectTrigger>
               <SelectContent>
-                {connections?.map((connection) => {
-                  const provider = SECRET_MANAGER_PROVIDERS_METADATA.find(
-                    (p) => p.id === connection.providerId,
-                  );
-                  return (
-                    <SelectItem key={connection.id} value={connection.id}>
-                      <div className="flex items-center gap-2">
-                        {provider?.logo && (
-                          <img
-                            src={provider.logo}
-                            alt={provider.name}
-                            className="size-4 shrink-0 object-contain"
-                          />
-                        )}
-                        <span>{connection.name}</span>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
+                {connections?.map((connection) => (
+                  <SelectItem key={connection.id} value={connection.id}>
+                    {connection.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {currentFields.length === 0 ? (
-              <Input
-                disabled
-                type="text"
-                className="bg-muted/50 cursor-not-allowed!"
-              />
-            ) : (
-              currentFields.map((param) => (
-                <Input
-                  key={param.name}
-                  placeholder={param.placeholder}
-                  value={fieldValues[param.name] || ''}
-                  onChange={(e) =>
-                    handleFieldChange(param.name, e.target.value)
-                  }
-                  disabled={disabled}
-                  type="text"
-                />
-              ))
-            )}
+            <Input
+              placeholder={t('Secret key')}
+              value={secretKey}
+              onChange={(e) => handleKeyChange(e.target.value)}
+              disabled={disabled || !selectedConnectionId}
+              type="text"
+            />
           </div>
         </div>
       );

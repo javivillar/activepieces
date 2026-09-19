@@ -22,40 +22,44 @@ export const refresquitoGitRepoModule: FastifyPluginAsyncZod = async (app) => {
 }
 
 const refresquitoGitRepoController: FastifyPluginAsyncZod = async (app) => {
-    const service = refresquitoGitRepoService(app.log)
-
-    app.post('/', ConfigureRepoRequestSchema, async (request, reply) => {
-        const gitSync = await service.upsert(request.body)
-        await reply.status(StatusCodes.CREATED).send(gitSync)
+    app.post('/', UpsertRepoRequestSchema, async (request, reply) => {
+        const gitRepo = await refresquitoGitRepoService(request.log).upsert(request.body)
+        await reply.status(StatusCodes.CREATED).send(gitRepo)
     })
 
     app.get('/', ListRepoRequestSchema, async (request) => {
-        return service.list({ projectId: request.query.projectId })
+        return refresquitoGitRepoService(request.log).list({ projectId: request.query.projectId })
+    })
+
+    app.get('/:id', GetRepoRequestSchema, async (request) => {
+        return refresquitoGitRepoService(request.log).getOrThrow({ id: request.params.id })
     })
 
     app.post('/:id/push', PushRepoRequestSchema, async (request) => {
         const service = refresquitoGitRepoService(request.log)
+        const { id } = request.params
+        const userId = request.principal.id
         switch (request.body.type) {
             case RefresquitoGitPushOperationType.PUSH_FLOW:
-                return service.pushFlows({ id: request.params.id, userId: request.principal.id, request: request.body })
+                return service.pushFlows({ id, userId, request: request.body })
             case RefresquitoGitPushOperationType.DELETE_FLOW:
-                return service.deleteFlows({ id: request.params.id, userId: request.principal.id, request: request.body })
+                return service.deleteFlows({ id, userId, request: request.body })
             case RefresquitoGitPushOperationType.PUSH_TABLE:
-                return service.pushTables({ id: request.params.id, userId: request.principal.id, request: request.body })
+                return service.pushTables({ id, userId, request: request.body })
             case RefresquitoGitPushOperationType.DELETE_TABLE:
-                return service.deleteTables({ id: request.params.id, userId: request.principal.id, request: request.body })
+                return service.deleteTables({ id, userId, request: request.body })
             case RefresquitoGitPushOperationType.PUSH_EVERYTHING:
-                return service.pushEverything({ id: request.params.id, userId: request.principal.id, commitMessage: request.body.commitMessage })
+                return service.pushEverything({ id, userId, commitMessage: request.body.commitMessage })
         }
     })
 
     app.delete('/:id', DeleteRepoRequestSchema, async (request, reply) => {
-        await service.delete({ id: request.params.id, projectId: request.projectId })
+        await refresquitoGitRepoService(request.log).delete({ id: request.params.id, projectId: request.projectId })
         await reply.status(StatusCodes.NO_CONTENT).send()
     })
 }
 
-const ConfigureRepoRequestSchema = {
+const UpsertRepoRequestSchema = {
     config: {
         security: securityAccess.project([PrincipalType.USER, PrincipalType.SERVICE], Permission.WRITE_PROJECT_RELEASE, {
             type: ProjectResourceType.BODY,
@@ -79,6 +83,21 @@ const ListRepoRequestSchema = {
         querystring: z.object({ projectId: z.string() }),
         response: {
             [StatusCodes.OK]: SeekPage(RefresquitoGitRepoWithoutSensitiveData),
+        },
+    },
+}
+
+const GetRepoRequestSchema = {
+    config: {
+        security: securityAccess.project([PrincipalType.USER, PrincipalType.SERVICE], Permission.READ_PROJECT_RELEASE, {
+            type: ProjectResourceType.TABLE,
+            tableName: RefresquitoGitRepoEntity,
+        }),
+    },
+    schema: {
+        params: z.object({ id: z.string() }),
+        response: {
+            [StatusCodes.OK]: RefresquitoGitRepoWithoutSensitiveData,
         },
     },
 }

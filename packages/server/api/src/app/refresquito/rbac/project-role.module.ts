@@ -18,7 +18,7 @@ import { applicationEvents } from '../../helper/application-events'
 import { refresquitoProjectMemberService } from './project-member.service'
 import { refresquitoProjectRoleService } from './project-role.service'
 
-const DEFAULT_LIMIT_SIZE = 10
+const DEFAULT_PAGE_SIZE = 10
 
 export const refresquitoProjectRoleModule: FastifyPluginAsyncZod = async (app) => {
     await app.register(refresquitoProjectRoleController, { prefix: '/v1/project-roles' })
@@ -31,10 +31,10 @@ const refresquitoProjectRoleController: FastifyPluginAsyncZod = async (app) => {
 
     app.get('/:id/project-members', ListProjectMembersForProjectRoleRequest, async (req) => {
         return refresquitoProjectMemberService(req.log).list({
-            projectRoleId: req.params.id,
             platformId: req.principal.platform.id,
+            projectRoleId: req.params.id,
             cursorRequest: req.query.cursor ?? null,
-            limit: req.query.limit ?? DEFAULT_LIMIT_SIZE,
+            limit: req.query.limit ?? DEFAULT_PAGE_SIZE,
         })
     })
 
@@ -43,7 +43,11 @@ const refresquitoProjectRoleController: FastifyPluginAsyncZod = async (app) => {
     })
 
     app.post('/', CreateProjectRoleRequest, async (req, reply) => {
-        const projectRole = await refresquitoProjectRoleService.create(req.principal.platform.id, req.body)
+        const projectRole = await refresquitoProjectRoleService.create({
+            platformId: req.principal.platform.id,
+            name: req.body.name,
+            permissions: req.body.permissions,
+        })
         applicationEvents(req.log).sendUserEvent(req, {
             action: ApplicationEventName.PROJECT_ROLE_CREATED,
             data: { projectRole },
@@ -64,25 +68,24 @@ const refresquitoProjectRoleController: FastifyPluginAsyncZod = async (app) => {
         return projectRole
     })
 
-    app.delete('/:name', DeleteProjectRoleRequest, async (req) => {
-        const projectRole = await refresquitoProjectRoleService.getOneOrThrow({
-            name: req.params.name,
-            platformId: req.principal.platform.id,
-        })
+    app.delete('/:name', DeleteProjectRoleRequest, async (req, reply) => {
+        const platformId = req.principal.platform.id
+        const projectRole = await refresquitoProjectRoleService.getOneOrThrow({ name: req.params.name, platformId })
+        await refresquitoProjectRoleService.delete({ name: req.params.name, platformId })
         applicationEvents(req.log).sendUserEvent(req, {
             action: ApplicationEventName.PROJECT_ROLE_DELETED,
             data: { projectRole },
         })
-        return refresquitoProjectRoleService.delete({
-            name: req.params.name,
-            platformId: req.principal.platform.id,
-        })
+        return reply.code(StatusCodes.NO_CONTENT).send(null)
     })
 }
 
 const GetProjectRoleRequest = {
     config: { security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.SERVICE]) },
-    schema: { params: z.object({ id: ApId }) },
+    schema: {
+        params: z.object({ id: ApId }),
+        response: { [StatusCodes.OK]: ProjectRole },
+    },
 }
 
 const ListProjectRolesRequest = {

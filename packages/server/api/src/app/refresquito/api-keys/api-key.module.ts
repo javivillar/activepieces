@@ -36,7 +36,7 @@ const refresquitoApiKeyController: FastifyPluginAsyncZod = async (app) => {
             platformId: req.principal.platform.id,
             id: req.params.id,
         })
-        return reply.status(StatusCodes.OK).send()
+        return reply.status(StatusCodes.NO_CONTENT).send()
     })
 }
 

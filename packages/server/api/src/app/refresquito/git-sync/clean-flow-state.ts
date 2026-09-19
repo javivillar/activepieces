@@ -1,85 +1,117 @@
-import { ContinueOnFailureBranches, FlowAction, FlowActionType, FlowState, FlowTrigger, FlowTriggerType, FlowVersion, isNil } from '@activepieces/shared'
+import {
+    CodeAction,
+    ContinueOnFailureBranches,
+    FlowAction,
+    FlowActionType,
+    FlowState,
+    FlowTrigger,
+    FlowTriggerType,
+    FlowVersion,
+    isNil,
+    omit,
+    PieceAction,
+} from '@activepieces/shared'
 
-function cleanFlowState(flowState: FlowState): FlowState {
+// Fields that are either internal-DB bookkeeping (change on every read / write) or point at
+// records (project, owner, folder, template) that only make sense inside the environment the
+// flow was exported from. Declared as data so the strip set is the single source of truth,
+// rather than being implied by which fields a hand-written copy happens to mention.
+const FLOW_VOLATILE_KEYS = [
+    'created',
+    'updated',
+    'projectId',
+    'ownerId',
+    'folderId',
+    'publishedVersionId',
+    'operationStatus',
+    'timeSavedPerRun',
+    'templateId',
+    'createdBy',
+] as const
+
+const FLOW_VERSION_VOLATILE_KEYS = ['created', 'updated', 'updatedBy'] as const
+
+// Every action/trigger "node" keeps all of its own fields except the ones that point at child
+// nodes — those need to be recursively cleaned rather than copied verbatim. Naming them per node
+// kind, instead of writing out every kept field by hand, is what lets a single generic step
+// (`omit` + recurse) stand in for a bespoke copy-function per node type.
+const TRIGGER_CHILD_KEYS = ['nextAction'] as const
+const BRANCHING_ACTION_CHILD_KEYS = ['nextAction', 'continueOnFailureBranches'] as const
+const LOOP_ACTION_CHILD_KEYS = ['nextAction', 'firstLoopAction'] as const
+const ROUTER_ACTION_CHILD_KEYS = ['nextAction', 'children'] as const
+
+export type CleanedFlowVersion = Omit<FlowVersion, typeof FLOW_VERSION_VOLATILE_KEYS[number]>
+export type CleanedFlowState = Omit<FlowState, typeof FLOW_VOLATILE_KEYS[number] | 'version'> & {
+    version: CleanedFlowVersion
+}
+
+function cleanFlowState(flowState: FlowState): CleanedFlowState {
     return {
-        id: flowState.id,
-        created: flowState.created,
-        updated: flowState.updated,
-        projectId: flowState.projectId,
-        externalId: flowState.externalId,
-        ownerId: flowState.ownerId,
-        folderId: flowState.folderId,
-        status: flowState.status,
-        publishedVersionId: flowState.publishedVersionId,
-        metadata: flowState.metadata,
-        operationStatus: flowState.operationStatus,
-        timeSavedPerRun: flowState.timeSavedPerRun,
-        templateId: flowState.templateId,
+        ...omit(flowState, [...FLOW_VOLATILE_KEYS]),
         version: cleanFlowVersion(flowState.version),
-        triggerSource: flowState.triggerSource,
     }
 }
 
-function cleanFlowVersion(version: FlowVersion): FlowVersion {
+function cleanFlowVersion(version: FlowVersion): CleanedFlowVersion {
     return {
-        id: version.id,
-        created: version.created,
-        updated: version.updated,
-        flowId: version.flowId,
-        displayName: version.displayName,
+        ...omit(version, [...FLOW_VERSION_VOLATILE_KEYS]),
         trigger: cleanTrigger(version.trigger),
-        updatedBy: version.updatedBy,
-        valid: version.valid,
-        schemaVersion: version.schemaVersion,
-        agentIds: version.agentIds,
-        state: version.state,
-        connectionIds: version.connectionIds,
-        backupFiles: version.backupFiles,
-        notes: version.notes,
     }
 }
 
 function cleanTrigger(trigger: FlowTrigger): FlowTrigger {
-    const nextAction = isNil(trigger.nextAction) ? undefined : cleanAction(trigger.nextAction)
-    const commonProps = {
-        name: trigger.name,
-        valid: trigger.valid,
-        displayName: trigger.displayName,
-        lastUpdatedDate: trigger.lastUpdatedDate,
-    }
     switch (trigger.type) {
         case FlowTriggerType.PIECE:
-            return { ...commonProps, type: trigger.type, settings: trigger.settings, nextAction }
+            return {
+                ...omit(trigger, [...TRIGGER_CHILD_KEYS]),
+                nextAction: cleanOptionalAction(trigger.nextAction),
+            }
         case FlowTriggerType.EMPTY:
-            return { ...commonProps, type: trigger.type, settings: trigger.settings, nextAction }
+            return {
+                ...omit(trigger, [...TRIGGER_CHILD_KEYS]),
+                nextAction: cleanOptionalAction(trigger.nextAction),
+            }
     }
 }
 
 function cleanAction(action: FlowAction): FlowAction {
-    const nextAction = isNil(action.nextAction) ? undefined : cleanAction(action.nextAction)
-    const commonProps = {
-        name: action.name,
-        valid: action.valid,
-        displayName: action.displayName,
-        skip: action.skip,
-        lastUpdatedDate: action.lastUpdatedDate,
-    }
     switch (action.type) {
         case FlowActionType.CODE:
-            return { ...commonProps, type: action.type, settings: action.settings, nextAction, continueOnFailureBranches: cleanBranches(action.continueOnFailureBranches) }
+            return cleanBranchingAction(action)
         case FlowActionType.PIECE:
-            return { ...commonProps, type: action.type, settings: action.settings, nextAction, continueOnFailureBranches: cleanBranches(action.continueOnFailureBranches) }
+            return cleanBranchingAction(action)
         case FlowActionType.LOOP_ON_ITEMS:
             return {
-                ...commonProps, type: action.type, settings: action.settings, nextAction,
-                firstLoopAction: isNil(action.firstLoopAction) ? undefined : cleanAction(action.firstLoopAction),
+                ...omit(action, [...LOOP_ACTION_CHILD_KEYS]),
+                nextAction: cleanOptionalAction(action.nextAction),
+                firstLoopAction: cleanOptionalAction(action.firstLoopAction),
             }
         case FlowActionType.ROUTER:
             return {
-                ...commonProps, type: action.type, settings: action.settings, nextAction,
+                ...omit(action, [...ROUTER_ACTION_CHILD_KEYS]),
+                nextAction: cleanOptionalAction(action.nextAction),
                 children: action.children.map((child) => isNil(child) ? null : cleanAction(child)),
             }
     }
+}
+
+function cleanBranchingAction(action: CodeAction | PieceAction): FlowAction {
+    if (action.type === FlowActionType.CODE) {
+        return {
+            ...omit(action, [...BRANCHING_ACTION_CHILD_KEYS]),
+            nextAction: cleanOptionalAction(action.nextAction),
+            continueOnFailureBranches: cleanBranches(action.continueOnFailureBranches),
+        }
+    }
+    return {
+        ...omit(action, [...BRANCHING_ACTION_CHILD_KEYS]),
+        nextAction: cleanOptionalAction(action.nextAction),
+        continueOnFailureBranches: cleanBranches(action.continueOnFailureBranches),
+    }
+}
+
+function cleanOptionalAction(action: FlowAction | undefined): FlowAction | undefined {
+    return isNil(action) ? undefined : cleanAction(action)
 }
 
 function cleanBranches(branches: ContinueOnFailureBranches | undefined): ContinueOnFailureBranches | undefined {
@@ -87,8 +119,8 @@ function cleanBranches(branches: ContinueOnFailureBranches | undefined): Continu
         return undefined
     }
     return {
-        onSuccess: isNil(branches.onSuccess) ? undefined : cleanAction(branches.onSuccess),
-        onFailure: isNil(branches.onFailure) ? undefined : cleanAction(branches.onFailure),
+        onSuccess: cleanOptionalAction(branches.onSuccess),
+        onFailure: cleanOptionalAction(branches.onFailure),
     }
 }
 
