@@ -114,6 +114,8 @@ export const UpdateRefresquitoProjectMemberRoleRequestBody = z.object({
 export type UpdateRefresquitoProjectMemberRoleRequestBody = z.infer<typeof UpdateRefresquitoProjectMemberRoleRequestBody>
 
 export const ListRefresquitoProjectMembersRequestQuery = z.object({
+    // Required by the route's project-scoped security check, which reads it from the query string.
+    projectId: z.string(),
     cursor: z.string().optional(),
     limit: z.coerce.number().optional(),
     projectRoleId: z.string().optional(),

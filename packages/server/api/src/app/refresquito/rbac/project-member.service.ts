@@ -74,14 +74,17 @@ export const refresquitoProjectMemberService = (log: FastifyBaseLogger) => ({
             },
         })
 
+        // The paginator builds its ORDER BY / cursor clauses from the entity's registered
+        // name, so the query alias must be that same name (not the table name).
+        const alias = RefresquitoProjectMemberEntity.options.name
         const queryBuilder = refresquitoProjectMemberRepo()
-            .createQueryBuilder('project_member')
-            .where('project_member."platformId" = :platformId', { platformId })
+            .createQueryBuilder(alias)
+            .where(`${alias}."platformId" = :platformId`, { platformId })
         if (!isNil(projectId)) {
-            queryBuilder.andWhere('project_member."projectId" = :projectId', { projectId })
+            queryBuilder.andWhere(`${alias}."projectId" = :projectId`, { projectId })
         }
         if (!isNil(projectRoleId)) {
-            queryBuilder.andWhere('project_member."projectRoleId" = :projectRoleId', { projectRoleId })
+            queryBuilder.andWhere(`${alias}."projectRoleId" = :projectRoleId`, { projectRoleId })
         }
 
         const { data: members, cursor } = await paginator.paginate(queryBuilder)
