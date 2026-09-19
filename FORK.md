@@ -340,6 +340,64 @@ browser/cookie jar shows the real Keycloak login form**, asking for
 credentials again — confirmed by the presence of `name="username"` in the
 response and the absence of an auto-redirect-with-code.
 
+## Refresquito-native "Enterprise-equivalent" modules (added 2026-09-17 → 09-19)
+
+Community Edition gates several features behind `ApEdition.CLOUD/ENTERPRISE`
+or plan flags. For each one below this fork ships its **own** implementation
+with **zero import from `app/ee/`** (licensing: we do not want production to
+depend on Enterprise-licensed code, not even by flipping a flag). Rule for
+anything new: build it under `refresquito/`, never import `ee/` — except
+genuinely generic, business-logic-free helpers.
+
+| Feature | Where | Notes |
+|---|---|---|
+| Audit log | `app/audit-logs/` | Listens on the edition-agnostic `applicationEvents` bus; writes to the already-migrated `audit_event` table under entity name `audit_log`. Registered only under `ApEdition.COMMUNITY`. |
+| Unlimited TEAM projects | `shared/src/lib/ee/billing/index.ts` | One-line plan value: `OPEN_SOURCE_PLAN.teamProjectsLimit = UNLIMITED`. |
+| API keys | `app/refresquito/api-keys/` | Table `refresquito_api_key` (own migration). Key format `sk-<21-char id>.<40-char secret>`; only the secret is hashed (SHA-256) and compared in constant time. **Old `sk-<64>` keys do not work.** |
+| Secret manager | `app/refresquito/secret-managers/` | Kubernetes-Secrets only (pod ServiceAccount, no stored credentials). `namespace` + `secretName` are fixed at connection time so the Role can grant `get` on ONE named Secret (`list`/`watch` cannot be scoped by `resourceNames`). Table `refresquito_secret_manager`. |
+| RBAC (roles + members + enforcement) | `app/refresquito/rbac/`, `shared/.../refresquito/rbac.ts` | Own permission engine at the single enforcement point `core/security/v2/authz/authorize.ts`. Reuses the already-migrated `project_role` / `project_member` tables under entity names `refresquito_project_role` / `refresquito_project_member` (no migration). Default role IDs are byte-identical to upstream's. Platform ADMIN has an *implied* Admin role on every project of its platform but is not a `project_member` row. |
+| Global connections | `app/refresquito/global-connections/` | Thin module over the CE `appConnectionService`. |
+| Git sync | `app/refresquito/git-sync/` | SSH remotes only (`git@host:owner/repo.git`; schema rejects HTTPS). Temp private key written `0600` and deleted after use, workspace confined under `tmp/`, `core.symlinks=false`, `protocol.file.allow=never`. Only **PUBLISHED** flows are pushed (upstream behaviour: a locked-but-unpublished flow yields a "successful" push that commits nothing). |
+
+Tables created by this fork's own migrations: `1795000000000-AddRefresquitoApiKey`,
+`1795000000001-AddRefresquitoSecretManager`, `1795000000002-AddRefresquitoGitRepo`.
+
+**Upstream files we modify for this (most likely to conflict on rebase):**
+`app.ts` (registers the modules; CLOUD/ENTERPRISE branches untouched),
+`core/security/v2/authz/authorize.ts` and `authn/authenticate.ts`,
+`core/websockets.service.ts`, `database/database-connection.ts` +
+`postgres-connection.ts`, `database/seeds/role-seed.ts`,
+`user/user-service.ts`, `user-invitations/*`,
+`app-connection/**` (permission checks rewired), `flows/flow/flow.controller.ts`,
+`tables/table/table.controller.ts`, `mcp/mcp-permissions.ts`,
+`shared/src/index.ts`, `shared/package.json` (version bump for new exports),
+and the matching web hooks/dialogs under `web/src/features/{members,platform-admin,
+project-releases,secret-managers}` and `web/src/app/routes/platform/security/`.
+- `mcp-permissions.ts` had an edition gate that made MCP tool permission
+  checks a complete no-op on Community; it is removed here, so MCP now
+  actually enforces permissions.
+
+**Gotchas learned the hard way:**
+- `buildPaginator` derives its clauses from the entity's **registered name**,
+  so the query-builder alias must be `Entity.options.name` (not the table
+  name). Using `project_member` for `refresquito_project_member` gave a 500
+  `missing FROM-clause entry`.
+- A Fastify zod `querystring` schema **strips undeclared keys**; the
+  project-scoped security check reads `projectId` from the query, so it must
+  be declared (`ListRefresquitoProjectMembersRequestQuery`) or the route
+  answers `403 Project ID is required`.
+- `project_member` HTTP routes need `projectId`; a platform admin passes the
+  role check (implied Admin) even though it is not a member row.
+- The image tag is floating (`refresquito-keycloak-sso`). After a push that
+  only changes code, `helm upgrade` renders an identical manifest and does
+  nothing: run `kubectl rollout restart deploy/<name>` (chart also sets
+  `imagePullPolicy: Always`).
+- After a host reboot check Redis: a truncated AOF makes it crash-loop
+  (`Bad file format reading the append only file`); repair with
+  `redis-check-aof --fix` on a copy of the PVC's `appendonlydir`.
+- Verified live end-to-end each time; the full security write-up is in
+  `refresquito-services/AUTHZ.md` §11–§15.
+
 ## What's intentionally NOT done
 
 - No changes to the existing Google/SAML EE code paths, beyond widening one
